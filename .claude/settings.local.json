@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh issue *)",
+      "PowerShell(Get-Command *)",
+      "PowerShell(gh issue list --state all --json number,title 2>&1)",
+      "Bash(where gh *)",
+      "Bash(gh --version)",
+      "Read(//c/Program Files/GitHub CLI//**)",
+      "Read(//c/Users/ogrea/AppData/Local/Programs/**)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" auth status)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" issue list --state all --json number,title)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" label list)",
+      "Bash('/c/Program Files/GitHub CLI/gh.exe' issue create --title '01 — Project scaffolding & tooling' --label ready-for-human --body ' *)",
+      "Bash('/c/Program Files/GitHub CLI/gh.exe' issue create --title '02 — XP Engine & Level Engine' --label ready-for-agent --body ' *)",
+      "Bash('/c/Program Files/GitHub CLI/gh.exe' issue create --title '03 — Auth: register + login' --label ready-for-agent --body ' *)",
+      "Bash('/c/Program Files/GitHub CLI/gh.exe' issue create --title '04 — Invite system' --label ready-for-agent --body ' *)",
+      "Bash('/c/Program Files/GitHub CLI/gh.exe' issue create --title '05 — Exercise Library' --label ready-for-agent --body ' *)",
+      "Bash('/c/Program Files/GitHub CLI/gh.exe' issue create --title '06 — Session logging with XP' --label ready-for-agent --body ' *)",
+      "Bash('/c/Program Files/GitHub CLI/gh.exe' issue create --title '07 — Player profile & levels' --label ready-for-agent --body ' *)",
+      "Bash('/c/Program Files/GitHub CLI/gh.exe' issue create --title '08 — Leaderboard' --label ready-for-agent --body ' *)"
+    ]
+  }
+}
