@@ -18,7 +18,8 @@
       "Bash('/c/Program Files/GitHub CLI/gh.exe' issue create --title '05 — Exercise Library' --label ready-for-agent --body ' *)",
       "Bash('/c/Program Files/GitHub CLI/gh.exe' issue create --title '06 — Session logging with XP' --label ready-for-agent --body ' *)",
       "Bash('/c/Program Files/GitHub CLI/gh.exe' issue create --title '07 — Player profile & levels' --label ready-for-agent --body ' *)",
-      "Bash('/c/Program Files/GitHub CLI/gh.exe' issue create --title '08 — Leaderboard' --label ready-for-agent --body ' *)"
+      "Bash('/c/Program Files/GitHub CLI/gh.exe' issue create --title '08 — Leaderboard' --label ready-for-agent --body ' *)",
+      "Bash(npm test *)"
     ]
   }
 }
