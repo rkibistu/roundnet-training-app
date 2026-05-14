@@ -24,7 +24,11 @@
       "Bash(xpToLevel)",
       "Bash(levelToXpThreshold)",
       "PowerShell(cd D:\\\\CodeProjects\\\\roundnet-training-app\\\\backend; $env:DATABASE_URL=\"postgresql://roundnet:roundnet@localhost:5432/roundnet\"; npx vitest run test/auth.test.ts 2>&1)",
-      "PowerShell(cd D:\\\\CodeProjects\\\\roundnet-training-app\\\\backend; $env:DATABASE_URL=\"postgresql://roundnet:roundnet@localhost:5432/roundnet\"; npx vitest run 2>&1)"
+      "PowerShell(cd D:\\\\CodeProjects\\\\roundnet-training-app\\\\backend; $env:DATABASE_URL=\"postgresql://roundnet:roundnet@localhost:5432/roundnet\"; npx vitest run 2>&1)",
+      "Bash(Select-String '\"version\"')",
+      "PowerShell(cd \"D:\\\\CodeProjects\\\\roundnet-training-app\\\\backend\" ; $env:DATABASE_URL = \"postgresql://roundnet:roundnet@localhost:5432/roundnet\" ; npx prisma migrate dev --name init 2>&1)",
+      "PowerShell(cd \"D:\\\\CodeProjects\\\\roundnet-training-app\\\\backend\" ; $env:DATABASE_URL = \"postgresql://roundnet:roundnet@localhost:5432/roundnet\" ; npx prisma generate 2>&1)",
+      "PowerShell(cd \"D:\\\\CodeProjects\\\\roundnet-training-app\\\\backend\" ; $env:DATABASE_URL = \"postgresql://roundnet:roundnet@localhost:5432/roundnet\" ; npx prisma migrate deploy 2>&1)"
     ]
   }
 }

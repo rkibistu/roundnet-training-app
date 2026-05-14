@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach, afterAll } from 'vitest'
+import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest'
 import request from 'supertest'
 import { PrismaClient } from '@prisma/client'
 import app from '../src/app.js'
+import prismaModule from '../src/db.js'
 
 const prisma = new PrismaClient()
 
@@ -103,5 +104,31 @@ describe('JWT middleware', () => {
     const res = await request(app).get('/protected-test').set('Authorization', `Bearer ${token}`)
     expect(res.status).toBe(200)
     expect(res.body.playerId).toBeDefined()
+  })
+})
+
+describe('error handling', () => {
+  it('returns 500 on register when the database throws unexpectedly', async () => {
+    vi.spyOn(prismaModule.player, 'findUnique').mockRejectedValueOnce(new Error('db exploded'))
+
+    const res = await request(app).post('/auth/register').send({
+      email: 'alice@example.com',
+      password: 'password123',
+    })
+
+    expect(res.status).toBe(500)
+    vi.restoreAllMocks()
+  })
+
+  it('returns 500 on login when the database throws unexpectedly', async () => {
+    vi.spyOn(prismaModule.player, 'findUnique').mockRejectedValueOnce(new Error('db exploded'))
+
+    const res = await request(app).post('/auth/login').send({
+      email: 'alice@example.com',
+      password: 'password123',
+    })
+
+    expect(res.status).toBe(500)
+    vi.restoreAllMocks()
   })
 })
