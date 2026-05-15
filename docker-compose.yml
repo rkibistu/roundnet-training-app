@@ -28,6 +28,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       JWT_SECRET: ${JWT_SECRET}
       PORT: ${PORT}
+      CORS_ORIGIN: '*'
     depends_on:
       db:
         condition: service_healthy

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
+import { AuthContext } from '../context/AuthContext'
 import LoginPage from './LoginPage'
 import * as authApi from '../api/auth'
 
@@ -13,10 +14,20 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => mockNavigate }
 })
 
+const mockLogin = vi.fn()
+const stubCtx = {
+  player: null,
+  isAuthenticated: false,
+  login: mockLogin,
+  logout: vi.fn(),
+}
+
 function renderPage() {
   render(
     <MemoryRouter>
-      <LoginPage />
+      <AuthContext.Provider value={stubCtx}>
+        <LoginPage />
+      </AuthContext.Provider>
     </MemoryRouter>
   )
 }
@@ -34,7 +45,7 @@ describe('LoginPage', () => {
     expect(screen.getByRole('button', { name: /log in/i })).toBeInTheDocument()
   })
 
-  it('stores JWT in localStorage and redirects to home on success', async () => {
+  it('calls AuthContext login with the token and navigates to / on success', async () => {
     vi.mocked(authApi.login).mockResolvedValue({ token: 'my-jwt' })
     renderPage()
 
@@ -43,7 +54,7 @@ describe('LoginPage', () => {
     await userEvent.click(screen.getByRole('button', { name: /log in/i }))
 
     await waitFor(() => {
-      expect(localStorage.getItem('token')).toBe('my-jwt')
+      expect(mockLogin).toHaveBeenCalledWith('my-jwt')
       expect(mockNavigate).toHaveBeenCalledWith('/')
     })
   })
@@ -59,5 +70,10 @@ describe('LoginPage', () => {
     await waitFor(() => {
       expect(screen.getByRole('alert')).toBeInTheDocument()
     })
+  })
+
+  it('shows a link to the register page', () => {
+    renderPage()
+    expect(screen.getByRole('link', { name: /register/i })).toBeInTheDocument()
   })
 })

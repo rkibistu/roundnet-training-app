@@ -1,3 +1,11 @@
+import { useAuthContext } from '../context/AuthContext'
+
 export default function HomePage() {
-  return <main><h1>Roundnet Training</h1></main>
+  const { player } = useAuthContext()
+  return (
+    <main>
+      <h1>Home</h1>
+      <p>Welcome, {player?.nickname}</p>
+    </main>
+  )
 }

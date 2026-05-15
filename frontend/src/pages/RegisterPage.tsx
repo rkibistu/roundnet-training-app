@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { register } from '../api/auth'
 
 export default function RegisterPage() {
@@ -13,13 +13,8 @@ export default function RegisterPage() {
     e.preventDefault()
     setError('')
     try {
-      const { token } = await register({
-        email,
-        password,
-        nickname: nickname || undefined,
-      })
-      localStorage.setItem('token', token)
-      navigate('/')
+      await register({ email, password, nickname: nickname || undefined })
+      navigate('/login')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed')
     }
@@ -41,6 +36,7 @@ export default function RegisterPage() {
       </div>
       {error && <p role="alert">{error}</p>}
       <button type="submit">Register</button>
+      <p>Already have an account? <Link to="/login">Log in</Link></p>
     </form>
   )
 }

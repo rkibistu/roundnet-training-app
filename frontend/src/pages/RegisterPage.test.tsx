@@ -7,6 +7,12 @@ import * as authApi from '../api/auth'
 
 vi.mock('../api/auth')
 
+const mockNavigate = vi.fn()
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
+  return { ...actual, useNavigate: () => mockNavigate }
+})
+
 function renderPage() {
   render(
     <MemoryRouter>
@@ -45,6 +51,19 @@ describe('RegisterPage', () => {
     })
   })
 
+  it('navigates to /login on successful registration', async () => {
+    vi.mocked(authApi.register).mockResolvedValue({ token: 'tok' })
+    renderPage()
+
+    await userEvent.type(screen.getByLabelText(/email/i), 'alice@example.com')
+    await userEvent.type(screen.getByLabelText(/password/i), 'password123')
+    await userEvent.click(screen.getByRole('button', { name: /register/i }))
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/login')
+    })
+  })
+
   it('displays error message when registration fails', async () => {
     vi.mocked(authApi.register).mockRejectedValue(new Error('email already registered'))
     renderPage()
@@ -56,5 +75,10 @@ describe('RegisterPage', () => {
     await waitFor(() => {
       expect(screen.getByRole('alert')).toBeInTheDocument()
     })
+  })
+
+  it('shows a link to the login page', () => {
+    renderPage()
+    expect(screen.getByRole('link', { name: /log in/i })).toBeInTheDocument()
   })
 })

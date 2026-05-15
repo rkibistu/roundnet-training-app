@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { login } from '../api/auth'
+import { useNavigate, Link } from 'react-router-dom'
+import { login as apiLogin } from '../api/auth'
+import { useAuthContext } from '../context/AuthContext'
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const { login } = useAuthContext()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -12,8 +14,8 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
     try {
-      const { token } = await login({ email, password })
-      localStorage.setItem('token', token)
+      const { token } = await apiLogin({ email, password })
+      login(token)
       navigate('/')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')
@@ -32,6 +34,7 @@ export default function LoginPage() {
       </div>
       {error && <p role="alert">{error}</p>}
       <button type="submit">Log in</button>
+      <p>Don't have an account? <Link to="/register">Register</Link></p>
     </form>
   )
 }
