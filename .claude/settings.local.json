@@ -28,7 +28,12 @@
       "Bash(Select-String '\"version\"')",
       "PowerShell(cd \"D:\\\\CodeProjects\\\\roundnet-training-app\\\\backend\" ; $env:DATABASE_URL = \"postgresql://roundnet:roundnet@localhost:5432/roundnet\" ; npx prisma migrate dev --name init 2>&1)",
       "PowerShell(cd \"D:\\\\CodeProjects\\\\roundnet-training-app\\\\backend\" ; $env:DATABASE_URL = \"postgresql://roundnet:roundnet@localhost:5432/roundnet\" ; npx prisma generate 2>&1)",
-      "PowerShell(cd \"D:\\\\CodeProjects\\\\roundnet-training-app\\\\backend\" ; $env:DATABASE_URL = \"postgresql://roundnet:roundnet@localhost:5432/roundnet\" ; npx prisma migrate deploy 2>&1)"
+      "PowerShell(cd \"D:\\\\CodeProjects\\\\roundnet-training-app\\\\backend\" ; $env:DATABASE_URL = \"postgresql://roundnet:roundnet@localhost:5432/roundnet\" ; npx prisma migrate deploy 2>&1)",
+      "Bash(npm install *)",
+      "Bash(cors)",
+      "Bash(app.ts)",
+      "Bash(CORS_ORIGIN)",
+      "Bash(http://localhost:5173)"
     ]
   }
 }
