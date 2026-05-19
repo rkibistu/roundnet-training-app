@@ -25,7 +25,7 @@ const mockPrisma = prisma as {
 const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret'
 
 function makeToken(playerId: string, isAdmin: boolean) {
-  return jwt.sign({ playerId, isAdmin }, JWT_SECRET, { expiresIn: '1h' })
+  return jwt.sign({ sub: playerId, is_admin: isAdmin }, JWT_SECRET, { expiresIn: '1h' })
 }
 
 describe('POST /invites', () => {

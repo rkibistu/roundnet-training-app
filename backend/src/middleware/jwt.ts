@@ -25,8 +25,8 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
 
   const token = header.slice(7)
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as PlayerContext
-    req.player = { playerId: payload.playerId, isAdmin: payload.isAdmin }
+    const payload = jwt.verify(token, JWT_SECRET) as { sub: string; is_admin: boolean }
+    req.player = { playerId: payload.sub, isAdmin: payload.is_admin }
     next()
   } catch {
     res.status(401).json({ error: 'invalid token' })

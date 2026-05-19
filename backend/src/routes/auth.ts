@@ -75,7 +75,11 @@ router.post('/login', async (req: Request, res: Response) => {
       return
     }
 
-    const token = jwt.sign({ playerId: player.id, isAdmin: player.isAdmin }, JWT_SECRET, { expiresIn: '7d' })
+    const token = jwt.sign(
+      { sub: player.id, email: player.email, nickname: player.nickname ?? '', is_admin: player.isAdmin },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    )
     res.json({ token })
   } catch {
     res.status(500).json({ error: 'internal server error' })
