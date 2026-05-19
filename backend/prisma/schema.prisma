@@ -15,4 +15,18 @@ model Player {
   nickname     String?
   isAdmin      Boolean  @default(false)
   createdAt    DateTime @default(now())
+
+  invitesCreated Invite[] @relation("CreatedBy")
+  invitesUsed    Invite[] @relation("UsedBy")
+}
+
+model Invite {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  createdBy String
+  usedBy    String?
+  createdAt DateTime @default(now())
+
+  creator Player  @relation("CreatedBy", fields: [createdBy], references: [id])
+  user    Player? @relation("UsedBy", fields: [usedBy], references: [id])
 }

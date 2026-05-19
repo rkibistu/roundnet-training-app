@@ -8,7 +8,7 @@ const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret'
 const router = Router()
 
 router.post('/register', async (req: Request, res: Response) => {
-  const { email, password, nickname } = req.body
+  const { email, password, nickname, invite_code } = req.body
 
   if (!email || !password) {
     res.status(400).json({ error: 'email and password are required' })
@@ -23,12 +23,29 @@ router.post('/register', async (req: Request, res: Response) => {
     }
 
     const playerCount = await prisma.player.count()
-    const isAdmin = playerCount === 0
+    const isFirstPlayer = playerCount === 0
+
+    let invite = null
+    if (!isFirstPlayer) {
+      if (!invite_code) {
+        res.status(400).json({ error: 'invite_code is required' })
+        return
+      }
+      invite = await prisma.invite.findUnique({ where: { code: invite_code } })
+      if (!invite || invite.usedBy) {
+        res.status(400).json({ error: 'invalid or already used invite code' })
+        return
+      }
+    }
 
     const passwordHash = await bcrypt.hash(password, 10)
     const player = await prisma.player.create({
-      data: { email, passwordHash, nickname, isAdmin },
+      data: { email, passwordHash, nickname, isAdmin: isFirstPlayer },
     })
+
+    if (invite) {
+      await prisma.invite.update({ where: { id: invite.id }, data: { usedBy: player.id } })
+    }
 
     res.status(201).json({
       id: player.id,
