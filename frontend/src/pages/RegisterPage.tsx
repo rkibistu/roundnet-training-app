@@ -7,13 +7,14 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [nickname, setNickname] = useState('')
+  const [inviteCode, setInviteCode] = useState('')
   const [error, setError] = useState('')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
     try {
-      await register({ email, password, nickname: nickname || undefined })
+      await register({ email, password, nickname: nickname || undefined, invite_code: inviteCode || undefined })
       navigate('/login')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed')
@@ -33,6 +34,10 @@ export default function RegisterPage() {
       <div>
         <label htmlFor="nickname">Nickname</label>
         <input id="nickname" type="text" value={nickname} onChange={e => setNickname(e.target.value)} />
+      </div>
+      <div>
+        <label htmlFor="invite-code">Invite Code</label>
+        <input id="invite-code" type="text" value={inviteCode} onChange={e => setInviteCode(e.target.value)} />
       </div>
       {error && <p role="alert">{error}</p>}
       <button type="submit">Register</button>
