@@ -7,6 +7,25 @@ const dir = fileURLToPath(new URL('.', import.meta.url))
 expand(config({ path: resolve(dir, '../../.env') }))
 
 const { default: app } = await import('./app.js')
+const { default: prisma } = await import('./db.js')
+const { hash } = await import('bcrypt')
+
+async function bootstrap() {
+  const exists = await prisma.player.findUnique({ where: { email: 'admin@admin.com' } })
+  if (!exists) {
+    await prisma.player.create({
+      data: {
+        email: 'admin@admin.com',
+        passwordHash: await hash('admin', 10),
+        nickname: 'admin',
+        isAdmin: true,
+      },
+    })
+    console.log('Bootstrap: admin@admin.com created')
+  }
+}
+
+await bootstrap()
 
 const PORT = process.env.PORT ?? '3000'
 app.listen(Number(PORT), () => {

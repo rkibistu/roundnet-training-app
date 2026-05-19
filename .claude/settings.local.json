@@ -23,8 +23,6 @@
       "Bash(calculateXP)",
       "Bash(xpToLevel)",
       "Bash(levelToXpThreshold)",
-      "PowerShell(cd D:\\\\CodeProjects\\\\roundnet-training-app\\\\backend; $env:DATABASE_URL=\"postgresql://roundnet:roundnet@localhost:5432/roundnet\"; npx vitest run test/auth.test.ts 2>&1)",
-      "PowerShell(cd D:\\\\CodeProjects\\\\roundnet-training-app\\\\backend; $env:DATABASE_URL=\"postgresql://roundnet:roundnet@localhost:5432/roundnet\"; npx vitest run 2>&1)",
       "Bash(Select-String '\"version\"')",
       "PowerShell(cd \"D:\\\\CodeProjects\\\\roundnet-training-app\\\\backend\" ; $env:DATABASE_URL = \"postgresql://roundnet:roundnet@localhost:5432/roundnet\" ; npx prisma migrate dev --name init 2>&1)",
       "PowerShell(cd \"D:\\\\CodeProjects\\\\roundnet-training-app\\\\backend\" ; $env:DATABASE_URL = \"postgresql://roundnet:roundnet@localhost:5432/roundnet\" ; npx prisma generate 2>&1)",
@@ -33,7 +31,20 @@
       "Bash(cors)",
       "Bash(app.ts)",
       "Bash(CORS_ORIGIN)",
-      "Bash(http://localhost:5173)"
+      "Bash(http://localhost:5173)",
+      "Bash(npx vitest *)",
+      "PowerShell(cd D:\\\\CodeProjects\\\\roundnet-training-app\\\\backend; $env:DATABASE_URL=\"postgresql://roundnet:roundnet@localhost:5432/roundnet\"; npx prisma db push 2>&1)",
+      "PowerShell(npx vitest run --root D:\\\\CodeProjects\\\\roundnet-training-app\\\\backend 2>&1)",
+      "PowerShell(npx vitest run --root D:\\\\CodeProjects\\\\roundnet-training-app\\\\frontend 2>&1)",
+      "PowerShell($env:DATABASE_URL=\"postgresql://roundnet:roundnet@localhost:5432/roundnet\"; npx prisma migrate dev --name init --schema D:\\\\CodeProjects\\\\roundnet-training-app\\\\backend\\\\prisma\\\\schema.prisma 2>&1)",
+      "PowerShell($env:DATABASE_URL=\"postgresql://roundnet:roundnet@localhost:5432/roundnet\"; D:\\\\CodeProjects\\\\roundnet-training-app\\\\backend\\\\node_modules\\\\.bin\\\\prisma migrate dev --name init --schema D:\\\\CodeProjects\\\\roundnet-training-app\\\\backend\\\\prisma\\\\schema.prisma 2>&1)",
+      "PowerShell($env:DATABASE_URL=\"postgresql://roundnet:roundnet@localhost:5432/roundnet\"; npx prisma migrate dev --name init 2>&1)",
+      "PowerShell($env:DATABASE_URL=\"postgresql://roundnet:roundnet@localhost:5432/roundnet\"; npx prisma migrate dev --name init --create-only 2>&1)",
+      "PowerShell($env:DATABASE_URL=\"postgresql://roundnet:roundnet@localhost:5432/roundnet\"; npx prisma migrate status 2>&1)",
+      "PowerShell(git commit *)",
+      "PowerShell(cd D:\\\\CodeProjects\\\\roundnet-training-app\\\\backend; $env:DATABASE_URL = \"postgresql://roundnet:roundnet@localhost:5432/roundnet\"; npx prisma db execute --file prisma/seed-categories.sql --schema prisma/schema.prisma 2>&1)",
+      "PowerShell(cd D:\\\\CodeProjects\\\\roundnet-training-app\\\\backend; $env:DATABASE_URL = \"postgresql://roundnet:roundnet@localhost:5432/roundnet\"; $env:JWT_SECRET = \"dev-secret\"; npx vitest run --root . test/exercises.test.ts 2>&1)",
+      "PowerShell(cd D:\\\\CodeProjects\\\\roundnet-training-app\\\\backend; $env:DATABASE_URL = \"postgresql://roundnet:roundnet@localhost:5432/roundnet\"; $env:JWT_SECRET = \"dev-secret\"; npx vitest run --root . 2>&1)"
     ]
   }
 }
