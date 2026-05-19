@@ -19,6 +19,8 @@ model Player {
   invitesCreated Invite[]    @relation("CreatedBy")
   invitesUsed    Invite[]    @relation("UsedBy")
   exercises      Exercise[]
+  sessions       Session[]
+  xpLedger       XpLedger[]
 }
 
 model Invite {
@@ -36,6 +38,7 @@ model Category {
   id        String     @id @default(cuid())
   name      String     @unique
   exercises Exercise[]
+  xpLedger  XpLedger[]
 }
 
 model Exercise {
@@ -45,6 +48,44 @@ model Exercise {
   createdBy  String
   createdAt  DateTime @default(now())
 
-  category Category @relation(fields: [categoryId], references: [id])
-  creator  Player   @relation(fields: [createdBy], references: [id])
+  category       Category       @relation(fields: [categoryId], references: [id])
+  creator        Player         @relation(fields: [createdBy], references: [id])
+  sessionEntries SessionEntry[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  playerId  String
+  date      DateTime @db.Date
+  createdAt DateTime @default(now())
+
+  player  Player         @relation(fields: [playerId], references: [id])
+  entries SessionEntry[]
+}
+
+model SessionEntry {
+  id              String   @id @default(cuid())
+  sessionId       String
+  exerciseId      String
+  durationMinutes Int
+  qualityScore    Int
+  xpEarned        Float
+  createdAt       DateTime @default(now())
+
+  session    Session    @relation(fields: [sessionId], references: [id])
+  exercise   Exercise   @relation(fields: [exerciseId], references: [id])
+  xpLedger   XpLedger[]
+}
+
+model XpLedger {
+  id            String   @id @default(cuid())
+  playerId      String
+  categoryId    String?
+  xp            Float
+  sourceEntryId String
+  createdAt     DateTime @default(now())
+
+  player      Player       @relation(fields: [playerId], references: [id])
+  category    Category?    @relation(fields: [categoryId], references: [id])
+  sourceEntry SessionEntry @relation(fields: [sourceEntryId], references: [id])
 }

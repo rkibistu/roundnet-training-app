@@ -7,6 +7,9 @@ import prismaModule from '../src/db.js'
 const prisma = new PrismaClient()
 
 beforeEach(async () => {
+  await prisma.xpLedger.deleteMany()
+  await prisma.sessionEntry.deleteMany()
+  await prisma.session.deleteMany()
   await prisma.exercise.deleteMany()
   await prisma.invite.deleteMany()
   await prisma.player.deleteMany()

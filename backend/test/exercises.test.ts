@@ -19,6 +19,9 @@ async function createPlayer(email: string): Promise<string> {
 }
 
 beforeEach(async () => {
+  await prisma.xpLedger.deleteMany()
+  await prisma.sessionEntry.deleteMany()
+  await prisma.session.deleteMany()
   await prisma.exercise.deleteMany()
   await prisma.invite.deleteMany()
   await prisma.player.deleteMany()
