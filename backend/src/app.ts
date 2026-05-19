@@ -2,6 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import authRouter from './routes/auth.js'
 import invitesRouter from './routes/invites.js'
+import exercisesRouter from './routes/exercises.js'
 import { requireAuth } from './middleware/jwt.js'
 
 const app = express()
@@ -17,6 +18,7 @@ app.get('/health', (_req, res) => {
 
 app.use('/auth', authRouter)
 app.use('/invites', invitesRouter)
+app.use('/', exercisesRouter)
 
 // test-only route to verify JWT middleware
 if (process.env.NODE_ENV !== 'production') {

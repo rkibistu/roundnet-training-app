@@ -6,9 +6,9 @@ import ShellLayout from './components/ShellLayout'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import HomePage from './pages/HomePage'
+import LibraryPage from './pages/LibraryPage'
 
 function SessionsPage() { return <main><h1>Sessions</h1></main> }
-function LibraryPage() { return <main><h1>Library</h1></main> }
 function LeaderboardPage() { return <main><h1>Leaderboard</h1></main> }
 function ProfilePage() { return <main><h1>Profile</h1></main> }
 

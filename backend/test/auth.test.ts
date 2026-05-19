@@ -7,6 +7,7 @@ import prismaModule from '../src/db.js'
 const prisma = new PrismaClient()
 
 beforeEach(async () => {
+  await prisma.exercise.deleteMany()
   await prisma.invite.deleteMany()
   await prisma.player.deleteMany()
 })

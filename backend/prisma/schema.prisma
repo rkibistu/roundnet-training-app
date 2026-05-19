@@ -16,8 +16,9 @@ model Player {
   isAdmin      Boolean  @default(false)
   createdAt    DateTime @default(now())
 
-  invitesCreated Invite[] @relation("CreatedBy")
-  invitesUsed    Invite[] @relation("UsedBy")
+  invitesCreated Invite[]    @relation("CreatedBy")
+  invitesUsed    Invite[]    @relation("UsedBy")
+  exercises      Exercise[]
 }
 
 model Invite {
@@ -29,4 +30,21 @@ model Invite {
 
   creator Player  @relation("CreatedBy", fields: [createdBy], references: [id])
   user    Player? @relation("UsedBy", fields: [usedBy], references: [id])
+}
+
+model Category {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  exercises Exercise[]
+}
+
+model Exercise {
+  id         String   @id @default(cuid())
+  name       String
+  categoryId String
+  createdBy  String
+  createdAt  DateTime @default(now())
+
+  category Category @relation(fields: [categoryId], references: [id])
+  creator  Player   @relation(fields: [createdBy], references: [id])
 }

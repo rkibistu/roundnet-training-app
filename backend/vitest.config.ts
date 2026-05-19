@@ -7,5 +7,9 @@ expand(config({ path: '../.env' }))
 export default defineConfig({
   test: {
     globals: true,
+    pool: 'forks',
+    poolOptions: {
+      forks: { singleFork: true },
+    },
   },
 })
