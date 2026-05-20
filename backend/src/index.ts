@@ -3,12 +3,18 @@ import { expand } from 'dotenv-expand'
 import { resolve } from 'path'
 import { fileURLToPath } from 'url'
 
+
+
 const dir = fileURLToPath(new URL('.', import.meta.url))
 expand(config({ path: resolve(dir, '../../.env') }))
 
+console.log('Starting server...')
 const { default: app } = await import('./app.js')
+console.log('App imported')
 const { default: prisma } = await import('./db.js')
+console.log('Prisma imported')
 const { hash } = await import('bcrypt')
+console.log('bcrypt imported')
 
 async function bootstrap() {
   const exists = await prisma.player.findUnique({ where: { email: 'admin@admin.com' } })
@@ -25,13 +31,16 @@ async function bootstrap() {
   }
 }
 
+try {
+  await bootstrap()
+} catch (err) {
+  console.error('Bootstrap failed:', err)
+  process.exit(1)
+}
+
 const PORT = process.env.PORT ?? '3000'
-app.listen(Number(PORT), async () => {
+app.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`)
-  try {
-    await bootstrap()
-  } catch (err) {
-    console.error('Bootstrap failed:', err)
-    process.exit(1)
-  }
 })
+
+
