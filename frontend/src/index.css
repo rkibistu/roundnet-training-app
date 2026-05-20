@@ -2,6 +2,23 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Override browser autofill background — can't be done via Tailwind classes */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0px 1000px #ffffff inset;
+  -webkit-text-fill-color: #1F2421;
+  caret-color: #1F2421;
+}
+
+:where(.dark, .dark *) input:-webkit-autofill,
+:where(.dark, .dark *) input:-webkit-autofill:hover,
+:where(.dark, .dark *) input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0px 1000px #1F2421 inset;
+  -webkit-text-fill-color: #DCE1DE;
+  caret-color: #DCE1DE;
+}
+
 @theme {
   --color-brand-darkest: #1F2421;
   --color-brand-dark: #216869;
