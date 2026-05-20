@@ -8,6 +8,10 @@ function today(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
+const QUALITY_LABELS: Record<number, string> = {
+  1: '😐', 2: '🙂', 3: '😊', 4: '😄', 5: '🔥',
+}
+
 export default function SessionsPage() {
   const { player } = useAuthContext()
   const token = localStorage.getItem('jwt') ?? ''
@@ -21,7 +25,7 @@ export default function SessionsPage() {
 
   const [entryExerciseId, setEntryExerciseId] = useState('')
   const [entryDuration, setEntryDuration] = useState('')
-  const [entryQuality, setEntryQuality] = useState('3')
+  const [entryQuality, setEntryQuality] = useState(3)
   const [entryResults, setEntryResults] = useState<Record<string, SessionEntry[]>>({})
 
   useEffect(() => {
@@ -46,7 +50,7 @@ export default function SessionsPage() {
     const entry = await createSessionEntry(token, sessionId, {
       exercise_id: entryExerciseId,
       duration_minutes: Number(entryDuration),
-      quality_score: Number(entryQuality),
+      quality_score: entryQuality,
     })
     setEntryResults((prev) => ({
       ...prev,
@@ -56,70 +60,133 @@ export default function SessionsPage() {
   }
 
   return (
-    <main>
-      <h1>Sessions</h1>
+    <main className="p-4 flex flex-col gap-6 max-w-lg mx-auto">
+      <h1 className="text-2xl font-bold text-brand-darkest dark:text-brand-lightest">Sessions</h1>
 
-      <section aria-label="New session">
-        <h2>Log a new session</h2>
-        <form onSubmit={handleCreateSession} aria-label="Create session">
-          <label htmlFor="session-date">Date</label>
-          <input
-            id="session-date"
-            type="date"
-            value={newDate}
-            onChange={(e) => setNewDate(e.target.value)}
-            required
-          />
-          <button type="submit">Start session</button>
+      {/* New session */}
+      <section
+        aria-label="New session"
+        className="rounded-2xl bg-white dark:bg-brand-dark shadow p-5 flex flex-col gap-4"
+      >
+        <h2 className="text-base font-semibold text-brand-darkest dark:text-brand-lightest">
+          Log a new session
+        </h2>
+        <form onSubmit={handleCreateSession} aria-label="Create session" className="flex gap-3 items-end">
+          <div className="flex flex-col gap-1 flex-1">
+            <label htmlFor="session-date" className="text-sm font-medium text-brand-darkest dark:text-brand-lightest">
+              Date
+            </label>
+            <input
+              id="session-date"
+              type="date"
+              value={newDate}
+              onChange={(e) => setNewDate(e.target.value)}
+              required
+              className="min-h-[44px] rounded-lg border border-brand-light px-3 py-2 text-brand-darkest dark:text-brand-lightest bg-white dark:bg-brand-darkest outline-none focus:ring-2 focus:ring-brand-mid"
+            />
+          </div>
+          <button
+            type="submit"
+            className="min-h-[44px] px-5 rounded-lg bg-brand-mid text-white font-semibold hover:bg-brand-dark transition-colors whitespace-nowrap"
+          >
+            Start session
+          </button>
         </form>
       </section>
 
+      {/* Active session entry form */}
       {activeSessionId && (
-        <section aria-label="Add entry">
-          <h2>Add entry to session</h2>
-          <form onSubmit={(e) => handleAddEntry(e, activeSessionId)} aria-label="Add session entry">
-            <label htmlFor="entry-exercise">Exercise</label>
-            <select
-              id="entry-exercise"
-              value={entryExerciseId}
-              onChange={(e) => setEntryExerciseId(e.target.value)}
+        <section
+          aria-label="Add entry"
+          className="rounded-2xl bg-white dark:bg-brand-dark shadow p-5 flex flex-col gap-4"
+        >
+          <h2 className="text-base font-semibold text-brand-darkest dark:text-brand-lightest">
+            Add entry to session
+          </h2>
+          <form
+            onSubmit={(e) => handleAddEntry(e, activeSessionId)}
+            aria-label="Add session entry"
+            className="flex flex-col gap-4"
+          >
+            <div className="flex flex-col gap-1">
+              <label htmlFor="entry-exercise" className="text-sm font-medium text-brand-darkest dark:text-brand-lightest">
+                Exercise
+              </label>
+              <select
+                id="entry-exercise"
+                value={entryExerciseId}
+                onChange={(e) => setEntryExerciseId(e.target.value)}
+                className="min-h-[44px] rounded-lg border border-brand-light px-3 py-2 text-brand-darkest dark:text-brand-lightest bg-white dark:bg-brand-darkest outline-none focus:ring-2 focus:ring-brand-mid"
+              >
+                {exercises.map((ex) => (
+                  <option key={ex.id} value={ex.id}>{ex.name} — {ex.category.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label htmlFor="entry-duration" className="text-sm font-medium text-brand-darkest dark:text-brand-lightest">
+                Duration (minutes)
+              </label>
+              <input
+                id="entry-duration"
+                type="number"
+                min="1"
+                value={entryDuration}
+                onChange={(e) => setEntryDuration(e.target.value)}
+                required
+                className="min-h-[44px] rounded-lg border border-brand-light px-3 py-2 text-brand-darkest dark:text-brand-lightest bg-white dark:bg-brand-darkest outline-none focus:ring-2 focus:ring-brand-mid"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-medium text-brand-darkest dark:text-brand-lightest">
+                Quality Score
+              </span>
+              <div className="flex gap-2" role="group" aria-label="Quality Score">
+                {[1, 2, 3, 4, 5].map((q) => (
+                  <button
+                    key={q}
+                    type="button"
+                    aria-pressed={entryQuality === q}
+                    onClick={() => setEntryQuality(q)}
+                    className={[
+                      'flex-1 min-h-[44px] rounded-lg border text-lg font-semibold transition-colors',
+                      entryQuality === q
+                        ? 'bg-brand-mid border-brand-mid text-white'
+                        : 'border-brand-light text-brand-darkest dark:text-brand-lightest dark:border-brand-light bg-white dark:bg-brand-darkest hover:border-brand-mid',
+                    ].join(' ')}
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-center text-brand-dark dark:text-brand-light">
+                {QUALITY_LABELS[entryQuality]} {['', 'Poor', 'Fair', 'Good', 'Great', 'Perfect'][entryQuality]}
+              </p>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full min-h-[44px] rounded-lg bg-brand-mid text-white font-semibold hover:bg-brand-dark transition-colors"
             >
-              {exercises.map((ex) => (
-                <option key={ex.id} value={ex.id}>{ex.name} — {ex.category.name}</option>
-              ))}
-            </select>
-
-            <label htmlFor="entry-duration">Duration (minutes)</label>
-            <input
-              id="entry-duration"
-              type="number"
-              min="1"
-              value={entryDuration}
-              onChange={(e) => setEntryDuration(e.target.value)}
-              required
-            />
-
-            <label htmlFor="entry-quality">Quality score (1–5)</label>
-            <select
-              id="entry-quality"
-              value={entryQuality}
-              onChange={(e) => setEntryQuality(e.target.value)}
-            >
-              {[1, 2, 3, 4, 5].map((q) => (
-                <option key={q} value={q}>{q}</option>
-              ))}
-            </select>
-
-            <button type="submit">Add entry</button>
+              Add entry
+            </button>
           </form>
 
           {(entryResults[activeSessionId] ?? []).length > 0 && (
-            <ul aria-label="Session entries">
+            <ul aria-label="Session entries" className="flex flex-col gap-2 mt-2">
               {(entryResults[activeSessionId] ?? []).map((entry) => {
                 const ex = exercises.find((e) => e.id === entry.exerciseId)
                 return (
-                  <li key={entry.id}>
-                    {ex?.name ?? entry.exerciseId} — {entry.durationMinutes} min — Q{entry.qualityScore} — <strong>{entry.xpEarned} XP</strong>
+                  <li
+                    key={entry.id}
+                    className="flex items-center justify-between rounded-lg bg-brand-lightest dark:bg-brand-darkest px-4 py-3 text-sm"
+                  >
+                    <span className="text-brand-darkest dark:text-brand-lightest">
+                      {ex?.name ?? entry.exerciseId} — {entry.durationMinutes} min — Q{entry.qualityScore}
+                    </span>
+                    <span className="font-bold text-xp-gold">{entry.xpEarned} XP</span>
                   </li>
                 )
               })}
@@ -128,21 +195,40 @@ export default function SessionsPage() {
         </section>
       )}
 
-      <section aria-label="Past sessions">
-        <h2>Past sessions</h2>
+      {/* Past sessions */}
+      <section aria-label="Past sessions" className="flex flex-col gap-3">
+        <h2 className="text-base font-semibold text-brand-darkest dark:text-brand-lightest">Past sessions</h2>
         {sessions.length === 0 ? (
-          <p>No sessions yet.</p>
+          <p className="text-sm text-brand-dark dark:text-brand-light">No sessions yet.</p>
         ) : (
-          <ul>
+          <ul className="flex flex-col gap-3">
             {sessions.map((s) => (
-              <li key={s.id}>
-                <button type="button" onClick={() => navigate(`/sessions/${s.id}`)}>
-                  {s.date.slice(0, 10)} — {s.playerNickname ?? 'Unknown'} — {s.totalDuration} min
+              <li key={s.id} className="rounded-2xl bg-white dark:bg-brand-dark shadow overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => navigate(`/sessions/${s.id}`)}
+                  className="w-full text-left px-5 py-4 flex items-center justify-between min-h-[60px] hover:bg-brand-lightest dark:hover:bg-brand-darkest transition-colors"
+                >
+                  <div className="flex flex-col gap-0.5">
+                    <span className="font-semibold text-brand-darkest dark:text-brand-lightest">
+                      {s.date.slice(0, 10)}
+                    </span>
+                    <span className="text-sm text-brand-dark dark:text-brand-light">
+                      {s.playerNickname ?? 'Unknown'} · {s.totalDuration} min
+                    </span>
+                  </div>
+                  <span className="text-xs text-brand-mid">View →</span>
                 </button>
                 {s.id !== activeSessionId && (
-                  <button type="button" onClick={() => setActiveSessionId(s.id)}>
-                    Add entries
-                  </button>
+                  <div className="border-t border-brand-lightest dark:border-brand-darkest px-5 py-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveSessionId(s.id)}
+                      className="text-sm font-medium text-brand-mid hover:text-brand-dark min-h-[44px] transition-colors"
+                    >
+                      + Add entries
+                    </button>
+                  </div>
                 )}
               </li>
             ))}
