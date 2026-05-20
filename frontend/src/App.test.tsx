@@ -8,7 +8,10 @@ function makeJwt(payload: object) {
 }
 
 describe('App', () => {
-  beforeEach(() => { localStorage.clear() })
+  beforeEach(() => {
+    localStorage.clear()
+    document.documentElement.classList.remove('dark')
+  })
 
   it('renders without crashing', () => {
     render(<App />)
@@ -24,5 +27,11 @@ describe('App', () => {
     render(<App />)
     expect(screen.getByRole('heading', { name: 'Home' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /log in/i })).not.toBeInTheDocument()
+  })
+
+  it('applies dark class on login page when localStorage has dark preference', () => {
+    localStorage.setItem('theme', 'dark')
+    render(<App />)
+    expect(document.documentElement.classList.contains('dark')).toBe(true)
   })
 })

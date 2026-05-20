@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -13,6 +14,10 @@ import ProfilePage from './pages/ProfilePage'
 import LeaderboardPage from './pages/LeaderboardPage'
 
 export default function App() {
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', localStorage.getItem('theme') === 'dark')
+  }, [])
+
   return (
     <BrowserRouter>
       <AuthProvider>
