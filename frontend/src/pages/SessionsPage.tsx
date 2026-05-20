@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuthContext } from '../context/AuthContext'
 import { getExercises, Exercise } from '../api/exercises'
 import { createSession, getSessions, createSessionEntry, Session, SessionEntry } from '../api/sessions'
@@ -214,7 +214,14 @@ export default function SessionsPage() {
                       {s.date.slice(0, 10)}
                     </span>
                     <span className="text-sm text-brand-dark dark:text-brand-light">
-                      {s.playerNickname ?? 'Unknown'} · {s.totalDuration} min
+                      <Link
+                        to={`/profile/${s.playerId}`}
+                        onClick={e => e.stopPropagation()}
+                        className="hover:underline"
+                      >
+                        {s.playerNickname ?? 'Unknown'}
+                      </Link>
+                      {' '}· {s.totalDuration} min
                     </span>
                   </div>
                   <span className="text-xs text-brand-mid">View →</span>

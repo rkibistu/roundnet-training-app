@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { getSession, SessionDetail, SessionEntryDetail } from '../api/sessions'
 
 function buildCategorySummary(entries: SessionEntryDetail[]) {
@@ -66,7 +66,10 @@ export default function SessionDetailPage() {
         className="rounded-2xl bg-white dark:bg-brand-dark shadow p-5 flex flex-col gap-3"
       >
         <h1 className="text-xl font-bold text-brand-darkest dark:text-brand-lightest">
-          {session.player.nickname ?? 'Unknown'} — {session.date.slice(0, 10)}
+          <Link to={`/profile/${session.player.id}`} className="hover:underline">
+            {session.player.nickname ?? 'Unknown'}
+          </Link>
+          {' '}— {session.date.slice(0, 10)}
         </h1>
         <div className="flex gap-6 text-sm text-brand-dark dark:text-brand-light">
           <span>{totalDuration} min</span>

@@ -9,9 +9,9 @@ import HomePage from './pages/HomePage'
 import LibraryPage from './pages/LibraryPage'
 import SessionsPage from './pages/SessionsPage'
 import SessionDetailPage from './pages/SessionDetailPage'
+import ProfilePage from './pages/ProfilePage'
 
 function LeaderboardPage() { return <main><h1>Leaderboard</h1></main> }
-function ProfilePage() { return <main><h1>Profile</h1></main> }
 
 export default function App() {
   return (
