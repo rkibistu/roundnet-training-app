@@ -10,8 +10,7 @@ import LibraryPage from './pages/LibraryPage'
 import SessionsPage from './pages/SessionsPage'
 import SessionDetailPage from './pages/SessionDetailPage'
 import ProfilePage from './pages/ProfilePage'
-
-function LeaderboardPage() { return <main><h1>Leaderboard</h1></main> }
+import LeaderboardPage from './pages/LeaderboardPage'
 
 export default function App() {
   return (
