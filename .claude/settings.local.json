@@ -44,7 +44,17 @@
       "PowerShell(git commit *)",
       "PowerShell(cd D:\\\\CodeProjects\\\\roundnet-training-app\\\\backend; $env:DATABASE_URL = \"postgresql://roundnet:roundnet@localhost:5432/roundnet\"; npx prisma db execute --file prisma/seed-categories.sql --schema prisma/schema.prisma 2>&1)",
       "PowerShell(cd D:\\\\CodeProjects\\\\roundnet-training-app\\\\backend; $env:DATABASE_URL = \"postgresql://roundnet:roundnet@localhost:5432/roundnet\"; $env:JWT_SECRET = \"dev-secret\"; npx vitest run --root . test/exercises.test.ts 2>&1)",
-      "PowerShell(cd D:\\\\CodeProjects\\\\roundnet-training-app\\\\backend; $env:DATABASE_URL = \"postgresql://roundnet:roundnet@localhost:5432/roundnet\"; $env:JWT_SECRET = \"dev-secret\"; npx vitest run --root . 2>&1)"
+      "PowerShell(cd D:\\\\CodeProjects\\\\roundnet-training-app\\\\backend; $env:DATABASE_URL = \"postgresql://roundnet:roundnet@localhost:5432/roundnet\"; $env:JWT_SECRET = \"dev-secret\"; npx vitest run --root . 2>&1)",
+      "Bash(git -C /home/ogrean/roundnet-training-app status)",
+      "Bash(git -C /home/ogrean/roundnet-training-app diff)",
+      "Bash(git -C /home/ogrean/roundnet-training-app log --oneline -5)",
+      "Bash(docker compose *)",
+      "Bash(git -C /home/ogrean/roundnet-training-app diff --stat)",
+      "Bash(git -C /home/ogrean/roundnet-training-app show :1:.claude/settings.local.json)",
+      "Bash(git -C /home/ogrean/roundnet-training-app show :2:.claude/settings.local.json)",
+      "Bash(git -C /home/ogrean/roundnet-training-app show :3:.claude/settings.local.json)",
+      "Read(//tmp/**)",
+      "Bash(git *)"
     ]
   }
 }

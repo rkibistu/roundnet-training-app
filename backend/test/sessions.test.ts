@@ -184,6 +184,102 @@ describe('GET /sessions', () => {
     expect(res.body).toHaveLength(1)
     expect(res.body[0].playerId).toBe(alice)
   })
+
+  it('without player_id returns all sessions with playerNickname and totalDuration', async () => {
+    const alice = await createPlayer('alice@example.com')
+    const bob = await createPlayer('bob@example.com')
+    await prisma.player.update({ where: { id: alice }, data: { nickname: 'Alice' } })
+    await prisma.player.update({ where: { id: bob }, data: { nickname: 'Bob' } })
+
+    await request(app).post('/sessions').set('Authorization', `Bearer ${makeToken(alice)}`).send({})
+    await request(app).post('/sessions').set('Authorization', `Bearer ${makeToken(bob)}`).send({})
+
+    const res = await request(app)
+      .get('/sessions')
+      .set('Authorization', `Bearer ${makeToken(alice)}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body).toHaveLength(2)
+    for (const s of res.body) {
+      expect(s).toHaveProperty('playerNickname')
+      expect(s).toHaveProperty('totalDuration')
+      expect(typeof s.totalDuration).toBe('number')
+    }
+    const nicknames = res.body.map((s: { playerNickname: string }) => s.playerNickname)
+    expect(nicknames).toContain('Alice')
+    expect(nicknames).toContain('Bob')
+  })
+
+  it('with player_id filter includes playerNickname and totalDuration', async () => {
+    const alice = await createPlayer('alice@example.com')
+    await prisma.player.update({ where: { id: alice }, data: { nickname: 'Alice' } })
+    const category = await getCategory()
+    const exerciseId = await createExercise(alice, category.id)
+
+    const sessionRes = await request(app)
+      .post('/sessions')
+      .set('Authorization', `Bearer ${makeToken(alice)}`)
+      .send({})
+    const sessionId = sessionRes.body.id
+
+    await request(app)
+      .post(`/sessions/${sessionId}/entries`)
+      .set('Authorization', `Bearer ${makeToken(alice)}`)
+      .send({ exercise_id: exerciseId, duration_minutes: 30, quality_score: 4 })
+
+    const res = await request(app)
+      .get(`/sessions?player_id=${alice}`)
+      .set('Authorization', `Bearer ${makeToken(alice)}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body).toHaveLength(1)
+    expect(res.body[0].playerNickname).toBe('Alice')
+    expect(res.body[0].totalDuration).toBe(30)
+  })
+})
+
+describe('GET /sessions/:id', () => {
+  it('returns 404 for unknown session id', async () => {
+    const alice = await createPlayer('alice@example.com')
+    const res = await request(app)
+      .get('/sessions/nonexistent-id')
+      .set('Authorization', `Bearer ${makeToken(alice)}`)
+    expect(res.status).toBe(404)
+  })
+
+  it('returns session with player nickname and entries including exercise and category names', async () => {
+    const alice = await createPlayer('alice@example.com')
+    await prisma.player.update({ where: { id: alice }, data: { nickname: 'Alice' } })
+    const category = await getCategory()
+    const exerciseId = await createExercise(alice, category.id)
+
+    const sessionRes = await request(app)
+      .post('/sessions')
+      .set('Authorization', `Bearer ${makeToken(alice)}`)
+      .send({ date: '2026-03-01' })
+    const sessionId = sessionRes.body.id
+
+    await request(app)
+      .post(`/sessions/${sessionId}/entries`)
+      .set('Authorization', `Bearer ${makeToken(alice)}`)
+      .send({ exercise_id: exerciseId, duration_minutes: 20, quality_score: 4 })
+
+    const res = await request(app)
+      .get(`/sessions/${sessionId}`)
+      .set('Authorization', `Bearer ${makeToken(alice)}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body.id).toBe(sessionId)
+    expect(res.body.date.slice(0, 10)).toBe('2026-03-01')
+    expect(res.body.player).toMatchObject({ id: alice, nickname: 'Alice' })
+    expect(res.body.entries).toHaveLength(1)
+    const entry = res.body.entries[0]
+    expect(entry.exerciseName).toBe('Test exercise')
+    expect(entry.categoryName).toBe(category.name)
+    expect(entry.durationMinutes).toBe(20)
+    expect(entry.qualityScore).toBe(4)
+    expect(typeof entry.xpEarned).toBe('number')
+  })
 })
 
 describe('POST /sessions', () => {

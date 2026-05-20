@@ -20,16 +20,55 @@ router.post('/sessions', requireAuth, async (req: Request, res: Response) => {
 
 router.get('/sessions', requireAuth, async (req: Request, res: Response) => {
   const { player_id } = req.query
-  if (!player_id) {
-    res.status(400).json({ error: 'player_id is required' })
-    return
-  }
   try {
     const sessions = await prisma.session.findMany({
-      where: { playerId: String(player_id) },
+      where: player_id ? { playerId: String(player_id) } : undefined,
       orderBy: { date: 'desc' },
+      include: {
+        player: { select: { nickname: true } },
+        entries: { select: { durationMinutes: true } },
+      },
     })
-    res.json(sessions)
+    const result = sessions.map(({ player, entries, ...s }) => ({
+      ...s,
+      playerNickname: player.nickname,
+      totalDuration: entries.reduce((sum, e) => sum + e.durationMinutes, 0),
+    }))
+    res.json(result)
+  } catch {
+    res.status(500).json({ error: 'internal server error' })
+  }
+})
+
+router.get('/sessions/:id', requireAuth, async (req: Request, res: Response) => {
+  const { id } = req.params
+  try {
+    const session = await prisma.session.findUnique({
+      where: { id },
+      include: {
+        player: { select: { id: true, nickname: true } },
+        entries: {
+          include: {
+            exercise: { include: { category: { select: { name: true } } } },
+          },
+        },
+      },
+    })
+    if (!session) { res.status(404).json({ error: 'session not found' }); return }
+    const { player, entries, ...sessionFields } = session
+    res.json({
+      ...sessionFields,
+      player,
+      entries: entries.map(({ exercise, ...e }) => ({
+        id: e.id,
+        exerciseId: e.exerciseId,
+        exerciseName: exercise.name,
+        categoryName: exercise.category.name,
+        durationMinutes: e.durationMinutes,
+        qualityScore: e.qualityScore,
+        xpEarned: e.xpEarned,
+      })),
+    })
   } catch {
     res.status(500).json({ error: 'internal server error' })
   }

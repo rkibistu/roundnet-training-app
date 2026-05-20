@@ -8,6 +8,7 @@ import RegisterPage from './pages/RegisterPage'
 import HomePage from './pages/HomePage'
 import LibraryPage from './pages/LibraryPage'
 import SessionsPage from './pages/SessionsPage'
+import SessionDetailPage from './pages/SessionDetailPage'
 
 function LeaderboardPage() { return <main><h1>Leaderboard</h1></main> }
 function ProfilePage() { return <main><h1>Profile</h1></main> }
@@ -25,6 +26,7 @@ export default function App() {
             <Route element={<ShellLayout />}>
               <Route path="/" element={<HomePage />} />
               <Route path="/sessions" element={<SessionsPage />} />
+              <Route path="/sessions/:id" element={<SessionDetailPage />} />
               <Route path="/library" element={<LibraryPage />} />
               <Route path="/leaderboard" element={<LeaderboardPage />} />
               <Route path="/profile/:id" element={<ProfilePage />} />

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuthContext } from '../context/AuthContext'
 import { getExercises, Exercise } from '../api/exercises'
 import { createSession, getSessions, createSessionEntry, Session, SessionEntry } from '../api/sessions'
@@ -10,6 +11,7 @@ function today(): string {
 export default function SessionsPage() {
   const { player } = useAuthContext()
   const token = localStorage.getItem('jwt') ?? ''
+  const navigate = useNavigate()
 
   const [sessions, setSessions] = useState<Session[]>([])
   const [exercises, setExercises] = useState<Exercise[]>([])
@@ -24,7 +26,7 @@ export default function SessionsPage() {
 
   useEffect(() => {
     if (!player) return
-    getSessions(token, player.id).then(setSessions)
+    getSessions(token).then(setSessions)
     getExercises().then((exs) => {
       setExercises(exs)
       if (exs.length > 0) setEntryExerciseId(exs[0].id)
@@ -134,7 +136,9 @@ export default function SessionsPage() {
           <ul>
             {sessions.map((s) => (
               <li key={s.id}>
-                {s.date.slice(0, 10)}
+                <button type="button" onClick={() => navigate(`/sessions/${s.id}`)}>
+                  {s.date.slice(0, 10)} — {s.playerNickname ?? 'Unknown'} — {s.totalDuration} min
+                </button>
                 {s.id !== activeSessionId && (
                   <button type="button" onClick={() => setActiveSessionId(s.id)}>
                     Add entries

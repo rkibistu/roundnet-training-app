@@ -5,6 +5,8 @@ export interface Session {
   playerId: string
   date: string
   createdAt: string
+  playerNickname: string | null
+  totalDuration: number
 }
 
 export interface SessionEntry {
@@ -15,6 +17,24 @@ export interface SessionEntry {
   qualityScore: number
   xpEarned: number
   createdAt: string
+}
+
+export interface SessionEntryDetail {
+  id: string
+  exerciseId: string
+  exerciseName: string
+  categoryName: string
+  durationMinutes: number
+  qualityScore: number
+  xpEarned: number
+}
+
+export interface SessionDetail {
+  id: string
+  date: string
+  createdAt: string
+  player: { id: string; nickname: string | null }
+  entries: SessionEntryDetail[]
 }
 
 export async function createSession(token: string, date?: string): Promise<Session> {
@@ -30,8 +50,15 @@ export async function createSession(token: string, date?: string): Promise<Sessi
   return res.json()
 }
 
-export async function getSessions(token: string, playerId: string): Promise<Session[]> {
-  const res = await fetch(`${BASE}/sessions?player_id=${playerId}`, {
+export async function getSessions(token: string, playerId?: string): Promise<Session[]> {
+  const url = playerId ? `${BASE}/sessions?player_id=${playerId}` : `${BASE}/sessions`
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) throw new Error(res.statusText)
+  return res.json()
+}
+
+export async function getSession(token: string, id: string): Promise<SessionDetail> {
+  const res = await fetch(`${BASE}/sessions/${id}`, {
     headers: { Authorization: `Bearer ${token}` },
   })
   if (!res.ok) throw new Error(res.statusText)
