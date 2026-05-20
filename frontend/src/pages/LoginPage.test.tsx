@@ -76,4 +76,9 @@ describe('LoginPage', () => {
     renderPage()
     expect(screen.getByRole('link', { name: /register/i })).toBeInTheDocument()
   })
+
+  it('shows the app name at the top of the card', () => {
+    renderPage()
+    expect(screen.getByRole('heading', { name: /roundnet training/i })).toBeInTheDocument()
+  })
 })

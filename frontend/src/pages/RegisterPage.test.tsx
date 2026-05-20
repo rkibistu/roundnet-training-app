@@ -84,4 +84,9 @@ describe('RegisterPage', () => {
     renderPage()
     expect(screen.getByRole('link', { name: /log in/i })).toBeInTheDocument()
   })
+
+  it('shows the app name at the top of the card', () => {
+    renderPage()
+    expect(screen.getByRole('heading', { name: /roundnet training/i })).toBeInTheDocument()
+  })
 })
