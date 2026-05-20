@@ -54,13 +54,23 @@ describe('LibraryPage', () => {
     })
   })
 
-  it('filters by category when one is selected', async () => {
+  it('category filter renders as pill buttons, one per category plus All', async () => {
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /all/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /hitting/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /serving/i })).toBeInTheDocument()
+    })
+  })
+
+  it('filters by category when a pill is clicked', async () => {
     vi.mocked(exercisesApi.getExercises).mockResolvedValueOnce([makeExercise()]).mockResolvedValueOnce([])
     renderPage()
 
-    await waitFor(() => expect(screen.getByLabelText(/filter by category/i)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('button', { name: /serving/i })).toBeInTheDocument())
 
-    await userEvent.selectOptions(screen.getByLabelText(/filter by category/i), 'cat-2')
+    await userEvent.click(screen.getByRole('button', { name: /serving/i }))
 
     await waitFor(() => {
       expect(exercisesApi.getExercises).toHaveBeenCalledWith('cat-2')
@@ -72,12 +82,32 @@ describe('LibraryPage', () => {
     vi.mocked(exercisesApi.createExercise).mockResolvedValue(newExercise)
     renderPage()
 
+    await userEvent.click(screen.getByRole('button', { name: /\+ add exercise/i }))
     await waitFor(() => expect(screen.getByLabelText(/name/i)).toBeInTheDocument())
     await userEvent.type(screen.getByLabelText(/name/i), 'Jump serve')
-    await userEvent.click(screen.getByRole('button', { name: /add exercise/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^add exercise$/i }))
 
     await waitFor(() => {
       expect(screen.getByText('Jump serve')).toBeInTheDocument()
+    })
+  })
+
+  it('delete requires confirmation before removing the exercise', async () => {
+    vi.mocked(exercisesApi.getExercises).mockResolvedValue([makeExercise()])
+    vi.mocked(exercisesApi.deleteExercise).mockResolvedValue()
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('Cross-court hit')).toBeInTheDocument())
+
+    // First click shows confirmation — exercise still present, delete not called
+    await userEvent.click(screen.getByRole('button', { name: /delete/i }))
+    expect(exercisesApi.deleteExercise).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: /confirm/i })).toBeInTheDocument()
+
+    // Confirming actually deletes
+    await userEvent.click(screen.getByRole('button', { name: /confirm/i }))
+    await waitFor(() => {
+      expect(exercisesApi.deleteExercise).toHaveBeenCalledWith(expect.any(String), 'ex-1')
     })
   })
 
