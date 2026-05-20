@@ -44,4 +44,28 @@ describe('HomePage', () => {
       expect(screen.getByText('abc-xyz-123')).toBeInTheDocument()
     })
   })
+
+  it('shows a copy button next to the generated invite code', async () => {
+    vi.mocked(invitesApi.generateInvite).mockResolvedValue({ code: 'abc-xyz-123' })
+    renderPage(true)
+
+    await userEvent.click(screen.getByRole('button', { name: /generate invite/i }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /copy/i })).toBeInTheDocument()
+    })
+  })
+
+  it('clicking copy writes the invite code to the clipboard', async () => {
+    vi.mocked(invitesApi.generateInvite).mockResolvedValue({ code: 'abc-xyz-123' })
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.assign(navigator, { clipboard: { writeText } })
+    renderPage(true)
+
+    await userEvent.click(screen.getByRole('button', { name: /generate invite/i }))
+    await screen.findByRole('button', { name: /copy/i })
+    await userEvent.click(screen.getByRole('button', { name: /copy/i }))
+
+    expect(writeText).toHaveBeenCalledWith('abc-xyz-123')
+  })
 })
