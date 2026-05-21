@@ -66,6 +66,13 @@ _Avoid_: skill level, category rank
 - Level curve: exponential, tuned so that level 10 ≈ 1 week of regular training (3–4 sessions, ~45 min, medium quality), level 20 ≈ 3 weeks, level 100 ≈ 2 years
 - Approximate cumulative XP thresholds: L10=180, L20=540, L50=15,000, L100=200,000
 
+## Deployment
+
+- **Frontend**: Vercel — auto-deploys on push to `main`. Vite preset, root directory set to `frontend/`. All routes rewrite to `index.html` (see `frontend/vercel.json`) for SPA client-side routing.
+- **Backend**: Render free tier — runs `prisma migrate deploy && node dist/index.js`. Binds to `0.0.0.0:$PORT`.
+- **Database**: Supabase free tier — PostgreSQL, accessed via `DATABASE_URL`. Migrations managed by Prisma.
+- **Keep-alive**: UptimeRobot pings `/health` every 5 minutes to prevent Render cold starts.
+
 ## Example dialogue
 
 > **Dev:** "When a **Player** logs a **Session Entry** for a serving drill, where does the **XP** go?"

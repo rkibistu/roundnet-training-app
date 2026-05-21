@@ -8,6 +8,33 @@ A mobile-first PWA for tracking roundnet training sessions, XP, and levels.
 - **Frontend**: React + TypeScript + Vite + vite-plugin-pwa + Vitest
 - **Database**: PostgreSQL 16
 
+## Production
+
+| Layer    | Platform                | URL                                          | Notes                              |
+|----------|-------------------------|----------------------------------------------|------------------------------------|
+| Frontend | Vercel (free)           | https://roundnet-training-app.vercel.app     | Auto-deploys on push to `main`     |
+| Backend  | Render (free)           | https://roundnet-training-app.onrender.com   | Cold starts after 15 min idle      |
+| Database | Supabase (free, 500 MB) | —                                            | PostgreSQL, connection via `DATABASE_URL` |
+
+### Backend env vars (set in Render)
+
+| Variable      | Description                        |
+|---------------|------------------------------------|
+| `DATABASE_URL` | Supabase PostgreSQL connection string |
+| `JWT_SECRET`  | Strong random string for auth tokens |
+| `CORS_ORIGIN` | Vercel frontend URL                |
+| `PORT`        | Set automatically by Render        |
+
+### Frontend env vars (set in Vercel)
+
+| Variable       | Description              |
+|----------------|--------------------------|
+| `VITE_API_URL` | Render backend URL       |
+
+### Keep-alive
+
+UptimeRobot pings `https://roundnet-training-app.onrender.com/health` every 5 minutes to prevent Render cold starts.
+
 ## Running the full stack
 
 Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/).
