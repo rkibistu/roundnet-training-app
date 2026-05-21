@@ -38,7 +38,7 @@ try {
 console.log(process.env.PORT)
 const port = process.env.PORT ?? 3000
 console.log(port)
-app.listen(port, '0.0.0.0', () => {
+app.listen(Number(port), '0.0.0.0', () => {
   console.log(`Server running on port ${port}`)
 })
 
