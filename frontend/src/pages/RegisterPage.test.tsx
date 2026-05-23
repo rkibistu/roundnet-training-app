@@ -26,32 +26,32 @@ describe('RegisterPage', () => {
     vi.resetAllMocks()
   })
 
-  it('renders email, password, nickname, invite code fields and a submit button', () => {
+  it('renders email, password, nickname fields and a submit button (no invite code)', () => {
     renderPage()
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/password/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/nickname/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/invite code/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/invite code/i)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /register/i })).toBeInTheDocument()
   })
 
-  it('calls register API with form values including invite_code on submit', async () => {
+  it('calls register API with only email, password, and nickname on submit', async () => {
     vi.mocked(authApi.register).mockResolvedValue({ token: 'tok' })
     renderPage()
 
     await userEvent.type(screen.getByLabelText(/email/i), 'alice@example.com')
     await userEvent.type(screen.getByLabelText(/password/i), 'password123')
-    await userEvent.type(screen.getByLabelText(/invite code/i), 'myinvite123')
+    await userEvent.type(screen.getByLabelText(/nickname/i), 'Alice')
     await userEvent.click(screen.getByRole('button', { name: /register/i }))
 
     await waitFor(() => {
       expect(authApi.register).toHaveBeenCalledWith({
         email: 'alice@example.com',
         password: 'password123',
-        nickname: undefined,
-        invite_code: 'myinvite123',
+        nickname: 'Alice',
       })
     })
+    expect(vi.mocked(authApi.register).mock.calls[0][0]).not.toHaveProperty('invite_code')
   })
 
   it('navigates to /login on successful registration', async () => {

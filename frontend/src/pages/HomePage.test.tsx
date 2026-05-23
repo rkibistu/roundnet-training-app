@@ -1,18 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { describe, it, expect } from 'vitest'
+import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { AuthContext } from '../context/AuthContext'
 import HomePage from './HomePage'
-import * as invitesApi from '../api/invites'
-
-vi.mock('../api/invites')
 
 function renderPage(isAdmin: boolean) {
   const player = { id: 'p1', email: 'alice@example.com', nickname: 'Alice', is_admin: isAdmin }
   render(
     <MemoryRouter>
-      <AuthContext.Provider value={{ player, isAuthenticated: true, login: vi.fn(), logout: vi.fn() }}>
+      <AuthContext.Provider value={{ player, isAuthenticated: true, login: () => {}, logout: () => {} }}>
         <HomePage />
       </AuthContext.Provider>
     </MemoryRouter>
@@ -20,52 +16,28 @@ function renderPage(isAdmin: boolean) {
 }
 
 describe('HomePage', () => {
-  beforeEach(() => {
-    vi.resetAllMocks()
+  it('greets the current player', () => {
+    renderPage(false)
+    expect(screen.getByText(/welcome, alice/i)).toBeInTheDocument()
   })
 
-  it('does not show Generate invite button for non-admin', () => {
-    renderPage(false)
+  it('does not show any Generate invite button (invites removed)', () => {
+    renderPage(true)
     expect(screen.queryByRole('button', { name: /generate invite/i })).not.toBeInTheDocument()
   })
 
-  it('shows Generate invite button for admin', () => {
+  it('does not reference invite codes anywhere', () => {
     renderPage(true)
-    expect(screen.getByRole('button', { name: /generate invite/i })).toBeInTheDocument()
+    expect(screen.queryByText(/invite/i)).not.toBeInTheDocument()
   })
 
-  it('displays the generated code after clicking Generate invite', async () => {
-    vi.mocked(invitesApi.generateInvite).mockResolvedValue({ code: 'abc-xyz-123' })
+  it('shows an admin placeholder section for admins', () => {
     renderPage(true)
-
-    await userEvent.click(screen.getByRole('button', { name: /generate invite/i }))
-
-    await waitFor(() => {
-      expect(screen.getByText('abc-xyz-123')).toBeInTheDocument()
-    })
+    expect(screen.getByRole('region', { name: /admin/i })).toBeInTheDocument()
   })
 
-  it('shows a copy button next to the generated invite code', async () => {
-    vi.mocked(invitesApi.generateInvite).mockResolvedValue({ code: 'abc-xyz-123' })
-    renderPage(true)
-
-    await userEvent.click(screen.getByRole('button', { name: /generate invite/i }))
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /copy/i })).toBeInTheDocument()
-    })
-  })
-
-  it('clicking copy writes the invite code to the clipboard', async () => {
-    vi.mocked(invitesApi.generateInvite).mockResolvedValue({ code: 'abc-xyz-123' })
-    const writeText = vi.fn().mockResolvedValue(undefined)
-    Object.assign(navigator, { clipboard: { writeText } })
-    renderPage(true)
-
-    await userEvent.click(screen.getByRole('button', { name: /generate invite/i }))
-    await screen.findByRole('button', { name: /copy/i })
-    await userEvent.click(screen.getByRole('button', { name: /copy/i }))
-
-    expect(writeText).toHaveBeenCalledWith('abc-xyz-123')
+  it('does not show the admin placeholder for non-admins', () => {
+    renderPage(false)
+    expect(screen.queryByRole('region', { name: /admin/i })).not.toBeInTheDocument()
   })
 })

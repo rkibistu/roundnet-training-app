@@ -17,7 +17,6 @@ export interface RegisterPayload {
   email: string
   password: string
   nickname?: string
-  invite_code?: string
 }
 
 export interface AuthResult {

@@ -7,14 +7,13 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [nickname, setNickname] = useState('')
-  const [inviteCode, setInviteCode] = useState('')
   const [error, setError] = useState('')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
     try {
-      await register({ email, password, nickname: nickname || undefined, invite_code: inviteCode || undefined })
+      await register({ email, password, nickname: nickname || undefined })
       navigate('/login')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed')
@@ -61,18 +60,6 @@ export default function RegisterPage() {
               type="text"
               value={nickname}
               onChange={e => setNickname(e.target.value)}
-              className="min-h-[44px] rounded-lg border border-brand-light px-3 py-2 text-brand-darkest dark:text-brand-lightest bg-white dark:bg-brand-darkest outline-none focus:ring-2 focus:ring-brand-mid"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="invite-code" className="text-sm font-medium text-brand-darkest dark:text-brand-lightest">
-              Invite Code
-            </label>
-            <input
-              id="invite-code"
-              type="text"
-              value={inviteCode}
-              onChange={e => setInviteCode(e.target.value)}
               className="min-h-[44px] rounded-lg border border-brand-light px-3 py-2 text-brand-darkest dark:text-brand-lightest bg-white dark:bg-brand-darkest outline-none focus:ring-2 focus:ring-brand-mid"
             />
           </div>

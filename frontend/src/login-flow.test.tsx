@@ -34,18 +34,19 @@ describe('login flow', () => {
     })
   })
 
-  it('shows Generate invite button for admin after login', async () => {
+  it('shows Admin section for admin after login (invites removed)', async () => {
     await loginAs('Admin', true)
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /generate invite/i })).toBeInTheDocument()
+      expect(screen.getByRole('region', { name: /admin/i })).toBeInTheDocument()
     })
+    expect(screen.queryByRole('button', { name: /generate invite/i })).not.toBeInTheDocument()
   })
 
-  it('does not show Generate invite button for non-admin after login', async () => {
+  it('does not show Admin section for non-admin after login', async () => {
     await loginAs('Alice', false)
     await waitFor(() => {
       expect(screen.getByText(/welcome, alice/i)).toBeInTheDocument()
     })
-    expect(screen.queryByRole('button', { name: /generate invite/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: /admin/i })).not.toBeInTheDocument()
   })
 })
