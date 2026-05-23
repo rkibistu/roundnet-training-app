@@ -10,8 +10,10 @@ beforeEach(async () => {
   await prisma.xpLedger.deleteMany()
   await prisma.sessionEntry.deleteMany()
   await prisma.session.deleteMany()
-  await prisma.exercise.deleteMany()
-  await prisma.invite.deleteMany()
+  await prisma.skillPair.deleteMany()
+  await prisma.attunement.deleteMany()
+  await prisma.skill.deleteMany()
+  await prisma.habitDomain.deleteMany()
   await prisma.player.deleteMany()
 })
 
@@ -21,11 +23,6 @@ afterAll(async () => {
 
 async function registerPlayer(email: string, password: string) {
   await request(app).post('/auth/register').send({ email, password })
-}
-
-async function createInvite(createdBy: string): Promise<string> {
-  const { code } = await prisma.invite.create({ data: { code: `test-${Date.now()}`, createdBy } })
-  return code
 }
 
 describe('POST /auth/register', () => {
@@ -44,13 +41,12 @@ describe('POST /auth/register', () => {
     expect(res.body.passwordHash).toBeUndefined()
   })
 
-  it('first Player is Admin; subsequent Players are not', async () => {
-    const adminRes = await request(app).post('/auth/register').send({ email: 'alice@example.com', password: 'pw' })
-    const code = await createInvite(adminRes.body.id)
-    const res = await request(app).post('/auth/register').send({ email: 'bob@example.com', password: 'pw', invite_code: code })
+  it('subsequent Players can register without any invite_code', async () => {
+    await request(app).post('/auth/register').send({ email: 'alice@example.com', password: 'pw' })
+    const res = await request(app).post('/auth/register').send({ email: 'bob@example.com', password: 'pw', nickname: 'Bob' })
 
     expect(res.status).toBe(201)
-    expect(res.body.isAdmin).toBe(false)
+    expect(res.body).toMatchObject({ email: 'bob@example.com', nickname: 'Bob', isAdmin: false })
   })
 
   it('returns 409 when email is already registered', async () => {
@@ -60,50 +56,14 @@ describe('POST /auth/register', () => {
     expect(res.status).toBe(409)
   })
 
-  it('returns 400 when invite_code is missing for a non-first player', async () => {
-    await registerPlayer('alice@example.com', 'pw')
-    const res = await request(app).post('/auth/register').send({ email: 'bob@example.com', password: 'pw' })
-    expect(res.status).toBe(400)
-  })
-
-  it('returns 400 when invite_code does not exist', async () => {
+  it('ignores any invite_code that is sent (forward compatibility)', async () => {
     await registerPlayer('alice@example.com', 'pw')
     const res = await request(app).post('/auth/register').send({
       email: 'bob@example.com',
       password: 'pw',
-      invite_code: 'nonexistent',
-    })
-    expect(res.status).toBe(400)
-  })
-
-  it('returns 400 when invite_code is already used', async () => {
-    const adminRes = await request(app).post('/auth/register').send({ email: 'alice@example.com', password: 'pw' })
-    const adminId = adminRes.body.id
-    const code = await createInvite(adminId)
-    await prisma.invite.update({ where: { code }, data: { usedBy: adminId } })
-
-    const res = await request(app).post('/auth/register').send({
-      email: 'bob@example.com',
-      password: 'pw',
-      invite_code: code,
-    })
-    expect(res.status).toBe(400)
-  })
-
-  it('returns 201 and marks invite used_by on valid invite_code', async () => {
-    const adminRes = await request(app).post('/auth/register').send({ email: 'alice@example.com', password: 'pw' })
-    const adminId = adminRes.body.id
-    const code = await createInvite(adminId)
-
-    const res = await request(app).post('/auth/register').send({
-      email: 'bob@example.com',
-      password: 'pw',
-      invite_code: code,
+      invite_code: 'this-should-be-ignored',
     })
     expect(res.status).toBe(201)
-
-    const invite = await prisma.invite.findUnique({ where: { code } })
-    expect(invite?.usedBy).toBe(res.body.id)
   })
 })
 

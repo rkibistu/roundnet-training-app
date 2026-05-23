@@ -16,76 +16,101 @@ model Player {
   isAdmin      Boolean  @default(false)
   createdAt    DateTime @default(now())
 
-  invitesCreated Invite[]    @relation("CreatedBy")
-  invitesUsed    Invite[]    @relation("UsedBy")
-  exercises      Exercise[]
-  sessions       Session[]
-  xpLedger       XpLedger[]
+  domains  HabitDomain[] @relation("DomainOwner")
+  sessions Session[]
+  xpLedger XpLedger[]
 }
 
-model Invite {
+model HabitDomain {
+  id                 String   @id @default(cuid())
+  name               String
+  ownerId            String
+  accessibilityState String   @default("public")
+  rootDomainId       String?
+  isAscended         Boolean  @default(false)
+  createdAt          DateTime @default(now())
+
+  owner      Player        @relation("DomainOwner", fields: [ownerId], references: [id])
+  rootDomain HabitDomain?  @relation("RootChain", fields: [rootDomainId], references: [id])
+  attunedAs  HabitDomain[] @relation("RootChain")
+
+  skills              Skill[]
+  sessions            Session[]
+  xpLedger            XpLedger[]
+  attunementsAsDomain Attunement[] @relation("AttunementDomain")
+  attunementsAsRoot   Attunement[] @relation("AttunementRoot")
+}
+
+model Skill {
   id        String   @id @default(cuid())
-  code      String   @unique
-  createdBy String
-  usedBy    String?
+  name      String
+  domainId  String
   createdAt DateTime @default(now())
 
-  creator Player  @relation("CreatedBy", fields: [createdBy], references: [id])
-  user    Player? @relation("UsedBy", fields: [usedBy], references: [id])
-}
-
-model Category {
-  id        String     @id @default(cuid())
-  name      String     @unique
-  exercises Exercise[]
-  xpLedger  XpLedger[]
-}
-
-model Exercise {
-  id         String   @id @default(cuid())
-  name       String
-  categoryId String
-  createdBy  String
-  createdAt  DateTime @default(now())
-
-  category       Category       @relation(fields: [categoryId], references: [id])
-  creator        Player         @relation(fields: [createdBy], references: [id])
+  domain         HabitDomain    @relation(fields: [domainId], references: [id])
   sessionEntries SessionEntry[]
+  xpLedger       XpLedger[]
+  pairsAsPlayer  SkillPair[]    @relation("PlayerDomainSkill")
+  pairsAsRoot    SkillPair[]    @relation("RootDomainSkill")
 }
 
 model Session {
   id        String   @id @default(cuid())
   playerId  String
+  domainId  String
   date      DateTime @db.Date
   createdAt DateTime @default(now())
 
   player  Player         @relation(fields: [playerId], references: [id])
+  domain  HabitDomain    @relation(fields: [domainId], references: [id])
   entries SessionEntry[]
 }
 
 model SessionEntry {
   id              String   @id @default(cuid())
   sessionId       String
-  exerciseId      String
+  skillId         String
   durationMinutes Int
   qualityScore    Int
   xpEarned        Float
   createdAt       DateTime @default(now())
 
-  session    Session    @relation(fields: [sessionId], references: [id])
-  exercise   Exercise   @relation(fields: [exerciseId], references: [id])
-  xpLedger   XpLedger[]
+  session  Session    @relation(fields: [sessionId], references: [id])
+  skill    Skill      @relation(fields: [skillId], references: [id])
+  xpLedger XpLedger[]
 }
 
 model XpLedger {
   id            String   @id @default(cuid())
   playerId      String
-  categoryId    String?
+  skillId       String?
+  domainId      String?
   xp            Float
   sourceEntryId String
   createdAt     DateTime @default(now())
 
   player      Player       @relation(fields: [playerId], references: [id])
-  category    Category?    @relation(fields: [categoryId], references: [id])
+  skill       Skill?       @relation(fields: [skillId], references: [id])
+  domain      HabitDomain? @relation(fields: [domainId], references: [id])
   sourceEntry SessionEntry @relation(fields: [sourceEntryId], references: [id])
+}
+
+model SkillPair {
+  id                  String   @id @default(cuid())
+  playerDomainSkillId String
+  rootDomainSkillId   String
+  createdAt           DateTime @default(now())
+
+  playerSkill Skill @relation("PlayerDomainSkill", fields: [playerDomainSkillId], references: [id])
+  rootSkill   Skill @relation("RootDomainSkill", fields: [rootDomainSkillId], references: [id])
+}
+
+model Attunement {
+  id           String   @id @default(cuid())
+  domainId     String
+  rootDomainId String
+  createdAt    DateTime @default(now())
+
+  domain     HabitDomain @relation("AttunementDomain", fields: [domainId], references: [id])
+  rootDomain HabitDomain @relation("AttunementRoot", fields: [rootDomainId], references: [id])
 }
