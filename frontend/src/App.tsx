@@ -8,6 +8,8 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import HomePage from './pages/HomePage'
 import LibraryPage from './pages/LibraryPage'
+import CreateDomainPage from './pages/CreateDomainPage'
+import DomainDetailPage from './pages/DomainDetailPage'
 import SessionsPage from './pages/SessionsPage'
 import SessionDetailPage from './pages/SessionDetailPage'
 import ProfilePage from './pages/ProfilePage'
@@ -32,6 +34,8 @@ export default function App() {
               <Route path="/sessions" element={<SessionsPage />} />
               <Route path="/sessions/:id" element={<SessionDetailPage />} />
               <Route path="/library" element={<LibraryPage />} />
+              <Route path="/library/new" element={<CreateDomainPage />} />
+              <Route path="/library/:id" element={<DomainDetailPage />} />
               <Route path="/leaderboard" element={<LeaderboardPage />} />
               <Route path="/profile/:id" element={<ProfilePage />} />
             </Route>
