@@ -13,8 +13,12 @@ A named collection of Skills representing a pursuit or interest area created by 
 _Avoid_: category group, skill set, topic
 
 **Skill**:
-A named, trackable unit within a Habit Domain defined by the Domain's owner (e.g. "Serving", "Push-ups", "Read"). The leaf level at which Session Entries are logged and XP is earned. Each Skill belongs to exactly one Domain. Only the Domain's owner can create, rename, or delete Skills in that Domain. Attuned Players can only edit Skills in their own copy.
+A named, trackable unit within a Habit Domain defined by the Domain's owner (e.g. "Serving", "Push-ups", "Read"). The leaf level at which Session Entries are logged and XP is earned. Each Skill belongs to exactly one Domain. Only the Domain's owner can create, rename, archive, or restore Skills in that Domain. Attuned Players can only edit Skills in their own copy. A Skill is either **active** or **archived** (see Archived Skill).
 _Avoid_: exercise, drill, category, activity
+
+**Archived Skill**:
+A Skill the owner has retired without losing its history. Archiving (the "delete" action) sets an `archivedAt` timestamp instead of removing the row. An archived Skill: is hidden from the default Skill list (opt-in to view), cannot be the target of new Session Entries, has any existing Skill Pair broken on archive, and keeps all its existing Session Entries and XpLedger rows intact — so the XP it earned still feeds Domain Level and General Level. Archive is reversible: restoring clears `archivedAt` and the Skill becomes active again. Re-pairing after restore is manual.
+_Avoid_: deleted skill, removed skill, inactive skill
 
 **Domain Accessibility State**:
 Controls who can see and interact with a Domain. Three states: **public** (visible to all; anyone can Attune or Fracture directly; owner cannot remove attuned Players), **protected** (visible to all; Fracture is open, Attune requires a Join Request the owner must accept; owner can remove attuned Players), **private** (invisible to all except the owner and Players with a Domain Invite; neither Attune nor Fracture is possible without an invite; owner can remove attuned Players). Defaults to public. Protected and private are freely interchangeable. Public is permanent — a public Domain cannot be switched to protected or private; instead the owner must trigger Ascension (see Ascended Domain). An Ascended Domain is always treated as public.

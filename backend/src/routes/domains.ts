@@ -1,10 +1,13 @@
 import { Router, Request, Response } from 'express'
 import prisma from '../db.js'
 import { requireAuth } from '../middleware/jwt.js'
+import skillsRouter from './skills.js'
 
 const ACCESSIBILITY_STATES = ['public', 'protected', 'private'] as const
 
 const router = Router()
+
+router.use('/:id/skills', skillsRouter)
 
 router.use(requireAuth)
 

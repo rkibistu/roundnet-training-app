@@ -42,10 +42,11 @@ model HabitDomain {
 }
 
 model Skill {
-  id        String   @id @default(cuid())
-  name      String
-  domainId  String
-  createdAt DateTime @default(now())
+  id         String    @id @default(cuid())
+  name       String
+  domainId   String
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
 
   domain         HabitDomain    @relation(fields: [domainId], references: [id])
   sessionEntries SessionEntry[]
