@@ -85,6 +85,54 @@ router.patch('/:id', async (req: Request, res: Response) => {
   res.json(updated)
 })
 
+router.post('/:id/fracture', async (req: Request, res: Response) => {
+  const callerId = req.player!.playerId
+  const source = await prisma.habitDomain.findUnique({ where: { id: req.params.id } })
+  if (!source) {
+    res.status(404).json({ error: 'Domain not found' })
+    return
+  }
+  if (!canSee(callerId, source)) {
+    res.status(403).json({ error: 'forbidden' })
+    return
+  }
+  if (source.ownerId === callerId) {
+    res.status(403).json({ error: 'cannot fracture your own Domain' })
+    return
+  }
+
+  const nameOverride = req.body?.name
+  const fractureName = typeof nameOverride === 'string' && nameOverride.trim()
+    ? nameOverride.trim()
+    : source.name
+
+  const existing = await prisma.habitDomain.findFirst({
+    where: { ownerId: callerId, name: fractureName },
+  })
+  if (existing) {
+    res.status(400).json({ error: 'you already own a Domain with that name' })
+    return
+  }
+
+  const activeSkills = await prisma.skill.findMany({
+    where: { domainId: source.id, archivedAt: null },
+  })
+
+  const newDomain = await prisma.habitDomain.create({
+    data: {
+      name: fractureName,
+      ownerId: callerId,
+      accessibilityState: 'public',
+      rootDomainId: null,
+      skills: {
+        create: activeSkills.map(s => ({ name: s.name })),
+      },
+    },
+  })
+
+  res.status(201).json(newDomain)
+})
+
 router.delete('/:id', async (req: Request, res: Response) => {
   const domain = await prisma.habitDomain.findUnique({ where: { id: req.params.id } })
   if (!domain) {

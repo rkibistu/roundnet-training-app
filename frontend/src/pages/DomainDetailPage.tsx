@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { useParams } from 'react-router-dom'
-import { getDomain, updateDomain, type Domain } from '../api/domains'
+import { useParams, useNavigate } from 'react-router-dom'
+import { getDomain, updateDomain, fractureDomain, type Domain } from '../api/domains'
 import {
   listSkills,
   createSkill,
@@ -13,8 +13,11 @@ import { useAuthContext } from '../context/AuthContext'
 
 export default function DomainDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const { player } = useAuthContext()
   const [domain, setDomain] = useState<Domain | null>(null)
+  const [fracturing, setFracturing] = useState(false)
+  const [fractureName, setFractureName] = useState('')
   const [editingDomainName, setEditingDomainName] = useState(false)
   const [draftDomainName, setDraftDomainName] = useState('')
 
@@ -93,6 +96,13 @@ export default function DomainDetailPage() {
     setSkills(prev => prev.map(x => (x.id === s.id ? restored : x)))
   }
 
+  async function handleFractureConfirm(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (!domain) return
+    const newDomain = await fractureDomain(domain.id, { name: fractureName })
+    navigate(`/library/${newDomain.id}`)
+  }
+
   const activeSkills = skills.filter(s => !s.archivedAt)
   const archivedSkills = skills.filter(s => !!s.archivedAt)
 
@@ -128,6 +138,35 @@ export default function DomainDetailPage() {
           )}
         </div>
       )}
+      {!isOwner && (
+        fracturing ? (
+          <form onSubmit={handleFractureConfirm} className="flex flex-col gap-2 border rounded p-3">
+            <p className="text-sm">This creates an independent copy. Changes to the original will not affect your copy.</p>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm">Name</span>
+              <input
+                type="text"
+                className="border rounded p-2"
+                value={fractureName}
+                onChange={e => setFractureName(e.target.value)}
+              />
+            </label>
+            <div className="flex gap-2">
+              <button type="submit" className="rounded bg-brand-accent text-white px-3 py-1">Confirm</button>
+              <button type="button" onClick={() => setFracturing(false)} className="rounded border px-3 py-1">Cancel</button>
+            </div>
+          </form>
+        ) : (
+          <button
+            type="button"
+            className="self-start rounded border px-3 py-1 text-sm"
+            onClick={() => { setFractureName(domain.name); setFracturing(true) }}
+          >
+            Fracture
+          </button>
+        )
+      )}
+
       {domain.accessibilityState === 'public' ? (
         <div className="flex flex-col gap-1">
           <span className="text-sm uppercase tracking-wide text-brand-dark dark:text-brand-light">public</span>

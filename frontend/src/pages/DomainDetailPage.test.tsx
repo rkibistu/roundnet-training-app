@@ -7,6 +7,12 @@ import DomainDetailPage from './DomainDetailPage'
 import * as domainsApi from '../api/domains'
 import * as skillsApi from '../api/skills'
 
+const mockNavigate = vi.fn()
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
+  return { ...actual, useNavigate: () => mockNavigate }
+})
+
 vi.mock('../api/domains')
 vi.mock('../api/skills')
 
@@ -41,6 +47,7 @@ const skill = (over: Partial<skillsApi.Skill> = {}): skillsApi.Skill => ({
 beforeEach(() => {
   vi.resetAllMocks()
   vi.mocked(skillsApi.listSkills).mockResolvedValue([])
+  mockNavigate.mockReset()
 })
 
 describe('DomainDetailPage — Domain header', () => {
@@ -242,6 +249,73 @@ describe('DomainDetailPage — Skills list', () => {
     await userEvent.click(screen.getByRole('button', { name: /restore Old/i }))
     await waitFor(() => {
       expect(skillsApi.restoreSkill).toHaveBeenCalledWith('d1', 's2')
+    })
+  })
+})
+
+describe('DomainDetailPage — Fracture', () => {
+  it('shows a Fracture button for a Domain the caller does not own', async () => {
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(otherDomain)
+
+    renderPage()
+
+    expect(await screen.findByRole('button', { name: /fracture/i })).toBeInTheDocument()
+  })
+
+  it('does not show the Fracture button when the caller is the owner', async () => {
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(ownedDomain)
+
+    renderPage()
+
+    await screen.findByRole('heading', { name: /roundnet/i })
+    expect(screen.queryByRole('button', { name: /fracture/i })).not.toBeInTheDocument()
+  })
+
+  it('clicking Fracture reveals an inline confirmation form with the domain name pre-filled', async () => {
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(otherDomain)
+
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: /fracture/i }))
+
+    expect(screen.getByText(/independent copy/i)).toBeInTheDocument()
+    const nameInput = screen.getByDisplayValue('Theirs')
+    expect(nameInput).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /confirm/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument()
+  })
+
+  it('cancelling the confirmation hides the form without calling the API', async () => {
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(otherDomain)
+
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: /fracture/i }))
+    await userEvent.click(screen.getByRole('button', { name: /cancel/i }))
+
+    expect(domainsApi.fractureDomain).not.toHaveBeenCalled()
+    expect(screen.queryByText(/independent copy/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /fracture/i })).toBeInTheDocument()
+  })
+
+  it('confirming calls fractureDomain with the (editable) name and navigates to the new domain', async () => {
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(otherDomain)
+    const newDomain = { ...otherDomain, id: 'new-d', ownerId: 'me', name: 'My Copy' }
+    vi.mocked(domainsApi.fractureDomain).mockResolvedValue(newDomain)
+
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: /fracture/i }))
+
+    const nameInput = screen.getByDisplayValue('Theirs')
+    await userEvent.clear(nameInput)
+    await userEvent.type(nameInput, 'My Copy')
+
+    await userEvent.click(screen.getByRole('button', { name: /confirm/i }))
+
+    await waitFor(() => {
+      expect(domainsApi.fractureDomain).toHaveBeenCalledWith('d1', { name: 'My Copy' })
+      expect(mockNavigate).toHaveBeenCalledWith('/library/new-d')
     })
   })
 })
