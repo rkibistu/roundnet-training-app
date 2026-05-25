@@ -18,6 +18,8 @@ export default function DomainDetailPage() {
   const [editingDomainName, setEditingDomainName] = useState(false)
   const [draftDomainName, setDraftDomainName] = useState('')
 
+  const [draftAccessibility, setDraftAccessibility] = useState<'protected' | 'private'>('protected')
+
   const [skills, setSkills] = useState<Skill[]>([])
   const [showArchived, setShowArchived] = useState(false)
   const [newSkillName, setNewSkillName] = useState('')
@@ -26,7 +28,12 @@ export default function DomainDetailPage() {
 
   useEffect(() => {
     if (!id) return
-    getDomain(id).then(setDomain)
+    getDomain(id).then(d => {
+      setDomain(d)
+      if (d.accessibilityState !== 'public') {
+        setDraftAccessibility(d.accessibilityState as 'protected' | 'private')
+      }
+    })
   }, [id])
 
   useEffect(() => {
@@ -44,6 +51,13 @@ export default function DomainDetailPage() {
     const updated = await updateDomain(domain.id, { name: draftDomainName })
     setDomain(updated)
     setEditingDomainName(false)
+  }
+
+  async function handleSaveAccessibility(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (!domain) return
+    const updated = await updateDomain(domain.id, { accessibilityState: draftAccessibility })
+    setDomain(updated)
   }
 
   async function handleAddSkill(e: FormEvent<HTMLFormElement>) {
@@ -114,7 +128,34 @@ export default function DomainDetailPage() {
           )}
         </div>
       )}
-      <p className="text-sm uppercase tracking-wide text-brand-dark dark:text-brand-light">{domain.accessibilityState}</p>
+      {domain.accessibilityState === 'public' ? (
+        <div className="flex flex-col gap-1">
+          <span className="text-sm uppercase tracking-wide text-brand-dark dark:text-brand-light">public</span>
+          {isOwner && (
+            <p className="text-xs text-brand-dark dark:text-brand-light">
+              Public Domains are permanent and cannot change accessibility state.
+            </p>
+          )}
+        </div>
+      ) : isOwner ? (
+        <form onSubmit={handleSaveAccessibility} className="flex flex-col gap-2">
+          <label className="flex flex-col gap-1">
+            <span className="text-sm">Accessibility state</span>
+            <select
+              aria-label="Accessibility state"
+              className="border rounded p-2"
+              value={draftAccessibility || domain.accessibilityState}
+              onChange={e => setDraftAccessibility(e.target.value as 'protected' | 'private')}
+            >
+              <option value="protected">protected</option>
+              <option value="private">private</option>
+            </select>
+          </label>
+          <button type="submit" aria-label="Save accessibility" className="self-start rounded bg-brand-accent text-white px-3 py-1">Save</button>
+        </form>
+      ) : (
+        <p className="text-sm uppercase tracking-wide text-brand-dark dark:text-brand-light">{domain.accessibilityState}</p>
+      )}
 
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between">

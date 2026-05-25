@@ -52,7 +52,8 @@ export async function createDomain(payload: CreateDomainPayload): Promise<Domain
 }
 
 export interface UpdateDomainPayload {
-  name: string
+  name?: string
+  accessibilityState?: 'protected' | 'private'
 }
 
 export async function updateDomain(id: string, payload: UpdateDomainPayload): Promise<Domain> {

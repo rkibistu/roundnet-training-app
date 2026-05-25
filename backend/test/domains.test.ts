@@ -199,6 +199,73 @@ describe('PATCH /domains/:id', () => {
     const reloaded = await prisma.habitDomain.findUnique({ where: { id: d.id } })
     expect(reloaded?.name).toBe('Original')
   })
+
+  it('owner can switch accessibilityState from protected to private', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const d = await prisma.habitDomain.create({
+      data: { name: 'My Domain', ownerId: alice.playerId, accessibilityState: 'protected' },
+    })
+
+    const res = await request(app)
+      .patch(`/domains/${d.id}`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ accessibilityState: 'private' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.accessibilityState).toBe('private')
+    const reloaded = await prisma.habitDomain.findUnique({ where: { id: d.id } })
+    expect(reloaded?.accessibilityState).toBe('private')
+  })
+
+  it('owner can switch accessibilityState from private to protected', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const d = await prisma.habitDomain.create({
+      data: { name: 'My Domain', ownerId: alice.playerId, accessibilityState: 'private' },
+    })
+
+    const res = await request(app)
+      .patch(`/domains/${d.id}`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ accessibilityState: 'protected' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.accessibilityState).toBe('protected')
+  })
+
+  it('returns 400 when trying to change accessibilityState away from public', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const d = await prisma.habitDomain.create({
+      data: { name: 'My Domain', ownerId: alice.playerId, accessibilityState: 'public' },
+    })
+
+    const toPrivate = await request(app)
+      .patch(`/domains/${d.id}`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ accessibilityState: 'private' })
+    expect(toPrivate.status).toBe(400)
+
+    const toProtected = await request(app)
+      .patch(`/domains/${d.id}`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ accessibilityState: 'protected' })
+    expect(toProtected.status).toBe(400)
+
+    const reloaded = await prisma.habitDomain.findUnique({ where: { id: d.id } })
+    expect(reloaded?.accessibilityState).toBe('public')
+  })
+
+  it('returns 400 for an invalid accessibilityState value in PATCH', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const d = await prisma.habitDomain.create({
+      data: { name: 'My Domain', ownerId: alice.playerId, accessibilityState: 'protected' },
+    })
+
+    const res = await request(app)
+      .patch(`/domains/${d.id}`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ accessibilityState: 'secret' })
+    expect(res.status).toBe(400)
+  })
 })
 
 describe('DELETE /domains/:id', () => {

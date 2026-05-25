@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import prisma from '../db.js'
 import { requireAuth } from '../middleware/jwt.js'
+import { canSee } from '../visibility.js'
 
 const router = Router({ mergeParams: true })
 
@@ -13,7 +14,7 @@ async function loadDomainForReader(req: Request, res: Response) {
     res.status(404).json({ error: 'Domain not found' })
     return null
   }
-  if (domain.accessibilityState === 'private' && domain.ownerId !== req.player!.playerId) {
+  if (!canSee(req.player!.playerId, domain)) {
     res.status(403).json({ error: 'forbidden' })
     return null
   }

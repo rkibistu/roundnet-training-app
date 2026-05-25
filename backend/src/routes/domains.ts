@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express'
 import prisma from '../db.js'
 import { requireAuth } from '../middleware/jwt.js'
 import skillsRouter from './skills.js'
+import { canSee } from '../visibility.js'
 
 const ACCESSIBILITY_STATES = ['public', 'protected', 'private'] as const
 
@@ -30,7 +31,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     res.status(404).json({ error: 'Domain not found' })
     return
   }
-  if (domain.accessibilityState === 'private' && domain.ownerId !== req.player!.playerId) {
+  if (!canSee(req.player!.playerId, domain)) {
     res.status(403).json({ error: 'forbidden' })
     return
   }
@@ -47,15 +48,39 @@ router.patch('/:id', async (req: Request, res: Response) => {
     res.status(403).json({ error: 'forbidden' })
     return
   }
-  const { name } = req.body
-  const trimmed = typeof name === 'string' ? name.trim() : ''
-  if (!trimmed) {
-    res.status(400).json({ error: 'name is required' })
+
+  const { name, accessibilityState } = req.body
+  const data: { name?: string; accessibilityState?: string } = {}
+
+  if (name !== undefined) {
+    const trimmed = typeof name === 'string' ? name.trim() : ''
+    if (!trimmed) {
+      res.status(400).json({ error: 'name is required' })
+      return
+    }
+    data.name = trimmed
+  }
+
+  if (accessibilityState !== undefined) {
+    if (!ACCESSIBILITY_STATES.includes(accessibilityState)) {
+      res.status(400).json({ error: 'invalid accessibilityState' })
+      return
+    }
+    if (domain.accessibilityState === 'public') {
+      res.status(400).json({ error: 'public Domains are permanent and cannot change accessibilityState' })
+      return
+    }
+    data.accessibilityState = accessibilityState
+  }
+
+  if (Object.keys(data).length === 0) {
+    res.status(400).json({ error: 'nothing to update' })
     return
   }
+
   const updated = await prisma.habitDomain.update({
     where: { id: domain.id },
-    data: { name: trimmed },
+    data,
   })
   res.json(updated)
 })

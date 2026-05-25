@@ -126,6 +126,29 @@ describe('updateDomain', () => {
     })
     expect(JSON.parse(reqInit.body as string)).toEqual({ name: 'New name' })
   })
+
+  it('PATCHes /domains/:id with accessibilityState alone', async () => {
+    const updated = {
+      id: 'd1',
+      name: 'My Domain',
+      ownerId: 'p1',
+      accessibilityState: 'private',
+      rootDomainId: null,
+      isAscended: false,
+      createdAt: '2026-05-24T00:00:00.000Z',
+    }
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(updated),
+    })
+    global.fetch = fetchMock as unknown as typeof fetch
+
+    const result = await updateDomain('d1', { accessibilityState: 'private' })
+
+    expect(result).toEqual(updated)
+    const [, init] = fetchMock.mock.calls[0]
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({ accessibilityState: 'private' })
+  })
 })
 
 describe('deleteDomain', () => {

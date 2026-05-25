@@ -50,7 +50,7 @@ describe('DomainDetailPage — Domain header', () => {
     renderPage()
 
     expect(await screen.findByRole('heading', { name: /roundnet/i })).toBeInTheDocument()
-    expect(screen.getByText(/public/i)).toBeInTheDocument()
+    expect(screen.getByText(/^public$/i)).toBeInTheDocument()
     expect(domainsApi.getDomain).toHaveBeenCalledWith('d1')
   })
 
@@ -79,6 +79,50 @@ describe('DomainDetailPage — Domain header', () => {
 
     expect(await screen.findByRole('heading', { name: /theirs/i })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /edit name/i })).not.toBeInTheDocument()
+  })
+})
+
+describe('DomainDetailPage — Accessibility state panel', () => {
+  it('shows a read-only public badge with a permanence hint for a public Domain the owner owns', async () => {
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(ownedDomain)
+
+    renderPage()
+
+    await screen.findByRole('heading', { name: /roundnet/i })
+    expect(screen.getByText(/^public$/i)).toBeInTheDocument()
+    expect(screen.getByText(/permanent/i)).toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /accessibility/i })).not.toBeInTheDocument()
+  })
+
+  it('shows a selector for the owner of a protected Domain to switch to private', async () => {
+    const protectedDomain = { ...ownedDomain, accessibilityState: 'protected' as const }
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(protectedDomain)
+    vi.mocked(domainsApi.updateDomain).mockResolvedValue({ ...protectedDomain, accessibilityState: 'private' })
+
+    renderPage()
+
+    const select = await screen.findByRole('combobox', { name: /accessibility/i })
+    expect(select).toBeInTheDocument()
+    expect(screen.queryByText(/permanent/i)).not.toBeInTheDocument()
+
+    await userEvent.selectOptions(select, 'private')
+    await screen.findByRole('button', { name: /save accessibility/i })
+    await userEvent.click(screen.getByRole('button', { name: /save accessibility/i }))
+
+    await waitFor(() => {
+      expect(domainsApi.updateDomain).toHaveBeenCalledWith('d1', { accessibilityState: 'private' })
+    })
+  })
+
+  it('shows no selector to a non-owner — only plain text', async () => {
+    const protectedOther = { ...otherDomain, accessibilityState: 'protected' as const }
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(protectedOther)
+
+    renderPage()
+
+    await screen.findByRole('heading', { name: /theirs/i })
+    expect(screen.queryByRole('combobox', { name: /accessibility/i })).not.toBeInTheDocument()
+    expect(screen.getByText(/protected/i)).toBeInTheDocument()
   })
 })
 
