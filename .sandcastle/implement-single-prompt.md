@@ -30,16 +30,21 @@ PostgreSQL is running, migrated, and ready. `DATABASE_URL` is already set in the
 
 Use the `/tdd_afk` skill to implement this issue.
 
-When done:
+When implementation succeeds:
+- Run `npm run typecheck` from the backend directory. Fix any failures before proceeding.
 - Commit with message starting with `RALPH:`, listing key decisions and files changed.
-- Close the issue with `gh issue close {{ISSUE_NUMBER}} --comment "Completed by Sandcastle"`.
+- Open a pull request with `gh pr create` — title starting with `RALPH:`, body summarising what was done and why.
+- Close the issue with `gh issue close {{ISSUE_NUMBER}} --comment "Completed. PR: <pr-url>"`.
+
+If blocked or errored:
+- Leave a comment on the issue explaining why.
+- Do not open a PR. Do not close the issue.
 
 ## Rules
 
 - Work on **this issue only**. Do not attempt other issues.
-- Do not close the issue until you have committed the fix and verified tests pass.
+- Do not close the issue until you have committed the fix, verified tests pass, and opened the PR.
 - Do not leave commented-out code or TODO comments in committed code.
-- If you are blocked (missing context, failing tests you cannot fix, external dependency), leave a comment on the issue explaining why and do not close it.
 
 # Done
 

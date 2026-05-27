@@ -1,14 +1,7 @@
-// Three-phase workflow: plan → implement → review
+// Single-phase workflow: implement
 //
-// Phase 1 (Plan):      An interactive session where you and the agent discuss
-//                      the specified issue. The agent presents its reading of
-//                      the issue, asks questions, and posts a comment if
-//                      anything important was decided.
-// Phase 2 (Implement): A sandboxed agent picks up the issue (including any
-//                      new comment from Phase 1) and implements the fix using
-//                      RGR (Red → Green → Repeat → Refactor).
-// Phase 3 (Review):    A second agent reviews the branch diff and either
-//                      approves or makes corrections directly on the branch.
+// The implementer picks up the issue, implements it using /tdd_afk,
+// opens a PR, and closes the issue — all in one pass.
 //
 // Usage:
 //   npx tsx .sandcastle/main.mts <issue-number>
@@ -17,7 +10,6 @@
 
 import * as sandcastle from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
-import { noSandbox } from "@ai-hero/sandcastle/sandboxes/no-sandbox";
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -38,20 +30,19 @@ const hooks = {
       { command: "mkdir -p ~/.claude/skills && cp -r .sandcastle/skills/tdd_afk ~/.claude/skills/" },
       { command: "cd /home/agent/workspace/backend && npm install", timeoutMs: 300_000 },
       { command: "cd /home/agent/workspace/frontend && npm install", timeoutMs: 300_000 },
-      { command: "cd /home/agent/workspace/backend && DATABASE_URL='postgresql://roundnet:roundnet@localhost:5432/roundnet' npx prisma migrate deploy", timeoutMs: 60_000 }] },
+      { command: "cd /home/agent/workspace/backend && npx prisma migrate deploy", timeoutMs: 60_000 }] },
 };
 
 console.log("\nStarting implementation...\n");
 
 // ---------------------------------------------------------------------------
-// Phase 1 & 2: Implement → Review
+// Implement
 // ---------------------------------------------------------------------------
 
-const branch = `sandcastle/sequential-reviewer/${Date.now()}`;
+const branch = `sandcastle/implementer/${Date.now()}`;
 const branchStrategy = { type: "branch" as const, branch };
 
-// Phase 1: Implement
-console.log(`\n=== Phase 1: Implement — issue #${ISSUE_NUMBER} ===\n`);
+console.log(`\n=== Implement — issue #${ISSUE_NUMBER} ===\n`);
 
 const implement = await sandcastle.run({
   name: "implementer",
@@ -66,35 +57,15 @@ const implement = await sandcastle.run({
   completionSignal: ["<promise>COMPLETE</promise>", "<promise>BLOCKED</promise>", "<promise>ERROR</promise>"],
 });
 
-if (implement.completionSignal === "<promise>BLOCKED</promise>") {
-  console.log("Implementation agent is blocked. Check the issue comments for details. Skipping review.");
-} else if (implement.completionSignal === "<promise>ERROR</promise>") {
-  console.log("Implementation agent hit an unrecoverable error. Skipping review.");
-} else if (!implement.commits.length) {
-  console.log("Implementation agent made no commits. Skipping review.");
-} else if (!implement.completionSignal) {
-  console.log("Implementation agent hit the iteration limit without completing (or an ERROR). Skipping review.");
-} else {
-  console.log(`\nImplementation complete on branch: ${branch}`);
+if (implement.completionSignal === "<promise>COMPLETE</promise>") {
+  console.log(`\nDone. Branch: ${branch}`);
   console.log(`Commits: ${implement.commits.length}`);
-
-  // Phase 2: Review
-  console.log(`\n=== Phase 2: Review ===\n`);
-
-  await sandcastle.run({
-    name: "reviewer",
-    maxIterations: 1,
-    agent: sandcastle.claudeCode("claude-opus-4-7"),
-    sandbox: docker(),
-    hooks,
-    branchStrategy,
-    copyToWorktree: ["node_modules", "backend/node_modules", "frontend/node_modules"],
-    promptFile: "./.sandcastle/review-prompt.md",
-    promptArgs: { BRANCH: branch },
-  });
-
-  console.log("\nReview complete.");
+} else if (implement.completionSignal === "<promise>BLOCKED</promise>") {
+  console.log("Blocked. Check the issue comments for details.");
+} else if (implement.completionSignal === "<promise>ERROR</promise>") {
+  console.log("Unrecoverable error. Check the issue comments for details.");
+} else {
+  console.log("Hit the iteration limit without completing.");
 }
 
 console.log("\nAll done.");
-console.log("\nBranch: ${branch}");
