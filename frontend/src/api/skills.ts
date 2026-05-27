@@ -36,12 +36,25 @@ export async function createSkill(domainId: string, name: string): Promise<Skill
   return asJson<Skill>(res)
 }
 
-export async function renameSkill(domainId: string, skillId: string, name: string): Promise<Skill> {
+export class SkillHasPairError extends Error {
+  readonly hasPair = true
+  constructor() {
+    super('Skill has a pair — specify breakPair')
+  }
+}
+
+export async function renameSkill(domainId: string, skillId: string, name: string, breakPair?: boolean): Promise<Skill> {
+  const body: Record<string, unknown> = { name }
+  if (breakPair !== undefined) body.breakPair = breakPair
   const res = await fetch(`${BASE}/domains/${domainId}/skills/${skillId}`, {
     method: 'PATCH',
     headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify(body),
   })
+  if (res.status === 400) {
+    const data = await res.json().catch(() => ({}))
+    if (data.hasPair) throw new SkillHasPairError()
+  }
   return asJson<Skill>(res)
 }
 

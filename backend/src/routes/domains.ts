@@ -133,6 +133,125 @@ router.post('/:id/fracture', async (req: Request, res: Response) => {
   res.status(201).json(newDomain)
 })
 
+router.post('/:id/attune', async (req: Request, res: Response) => {
+  const callerId = req.player!.playerId
+  const domain = await prisma.habitDomain.findUnique({ where: { id: req.params.id } })
+  if (!domain) {
+    res.status(404).json({ error: 'Domain not found' })
+    return
+  }
+  if (domain.ownerId !== callerId) {
+    res.status(403).json({ error: 'forbidden' })
+    return
+  }
+
+  const { targetDomainId } = req.body
+  const target = await prisma.habitDomain.findUnique({ where: { id: targetDomainId } })
+  if (!target) {
+    res.status(404).json({ error: 'Target Domain not found' })
+    return
+  }
+  if (!canSee(callerId, target)) {
+    res.status(403).json({ error: 'forbidden' })
+    return
+  }
+
+  const existing = await prisma.attunement.findFirst({ where: { domainId: domain.id } })
+  if (existing) {
+    res.status(400).json({ error: 'Domain is already attuned' })
+    return
+  }
+
+  // Flat model: if target is itself attuned, use its rootDomainId directly
+  const rootDomainId = target.rootDomainId ?? target.id
+
+  const attunement = await prisma.attunement.create({
+    data: { domainId: domain.id, rootDomainId },
+  })
+  res.status(201).json(attunement)
+})
+
+router.get('/:id/skill-pairs', async (req: Request, res: Response) => {
+  const callerId = req.player!.playerId
+  const domain = await prisma.habitDomain.findUnique({ where: { id: req.params.id } })
+  if (!domain) {
+    res.status(404).json({ error: 'Domain not found' })
+    return
+  }
+  if (!canSee(callerId, domain)) {
+    res.status(403).json({ error: 'forbidden' })
+    return
+  }
+
+  const skills = await prisma.skill.findMany({ where: { domainId: domain.id }, select: { id: true } })
+  const skillIds = skills.map(s => s.id)
+  const pairs = await prisma.skillPair.findMany({
+    where: { playerDomainSkillId: { in: skillIds } },
+  })
+  res.json(pairs)
+})
+
+router.post('/:id/skill-pairs', async (req: Request, res: Response) => {
+  const callerId = req.player!.playerId
+  const domain = await prisma.habitDomain.findUnique({ where: { id: req.params.id } })
+  if (!domain) {
+    res.status(404).json({ error: 'Domain not found' })
+    return
+  }
+  if (domain.ownerId !== callerId) {
+    res.status(403).json({ error: 'forbidden' })
+    return
+  }
+
+  const attunement = await prisma.attunement.findFirst({ where: { domainId: domain.id } })
+  if (!attunement) {
+    res.status(400).json({ error: 'Domain is not attuned' })
+    return
+  }
+
+  const { playerSkillId, rootSkillId } = req.body
+  const playerSkill = await prisma.skill.findUnique({ where: { id: playerSkillId } })
+  if (!playerSkill || playerSkill.domainId !== domain.id) {
+    res.status(400).json({ error: 'playerSkillId does not belong to this Domain' })
+    return
+  }
+
+  const rootSkill = await prisma.skill.findUnique({ where: { id: rootSkillId } })
+  if (!rootSkill || rootSkill.domainId !== attunement.rootDomainId) {
+    res.status(400).json({ error: 'rootSkillId does not belong to the attuned Root Domain' })
+    return
+  }
+
+  const pair = await prisma.skillPair.create({
+    data: { playerDomainSkillId: playerSkillId, rootDomainSkillId: rootSkillId },
+  })
+  res.status(201).json(pair)
+})
+
+router.delete('/:id/skill-pairs/:pairId', async (req: Request, res: Response) => {
+  const callerId = req.player!.playerId
+  const domain = await prisma.habitDomain.findUnique({ where: { id: req.params.id } })
+  if (!domain) {
+    res.status(404).json({ error: 'Domain not found' })
+    return
+  }
+  if (domain.ownerId !== callerId) {
+    res.status(403).json({ error: 'forbidden' })
+    return
+  }
+
+  const skills = await prisma.skill.findMany({ where: { domainId: domain.id }, select: { id: true } })
+  const skillIds = new Set(skills.map(s => s.id))
+  const pair = await prisma.skillPair.findUnique({ where: { id: req.params.pairId } })
+  if (!pair || !skillIds.has(pair.playerDomainSkillId)) {
+    res.status(404).json({ error: 'SkillPair not found' })
+    return
+  }
+
+  await prisma.skillPair.delete({ where: { id: pair.id } })
+  res.status(204).end()
+})
+
 router.delete('/:id', async (req: Request, res: Response) => {
   const domain = await prisma.habitDomain.findUnique({ where: { id: req.params.id } })
   if (!domain) {

@@ -82,6 +82,59 @@ export async function fractureDomain(id: string, payload: { name?: string } = {}
   return res.json()
 }
 
+export interface SkillPair {
+  id: string
+  playerDomainSkillId: string
+  rootDomainSkillId: string
+  createdAt: string
+}
+
+export async function attuneDomain(id: string, targetDomainId: string): Promise<{ id: string; domainId: string; rootDomainId: string; createdAt: string }> {
+  const res = await fetch(`${BASE}/domains/${id}/attune`, {
+    method: 'POST',
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ targetDomainId }),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error ?? res.statusText)
+  }
+  return res.json()
+}
+
+export async function listSkillPairs(domainId: string): Promise<SkillPair[]> {
+  const res = await fetch(`${BASE}/domains/${domainId}/skill-pairs`, { headers: authHeaders() })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error ?? res.statusText)
+  }
+  return res.json()
+}
+
+export async function createSkillPair(domainId: string, playerSkillId: string, rootSkillId: string): Promise<SkillPair> {
+  const res = await fetch(`${BASE}/domains/${domainId}/skill-pairs`, {
+    method: 'POST',
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ playerSkillId, rootSkillId }),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error ?? res.statusText)
+  }
+  return res.json()
+}
+
+export async function deleteSkillPair(domainId: string, pairId: string): Promise<void> {
+  const res = await fetch(`${BASE}/domains/${domainId}/skill-pairs/${pairId}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error ?? res.statusText)
+  }
+}
+
 export async function deleteDomain(id: string): Promise<void> {
   const res = await fetch(`${BASE}/domains/${id}`, {
     method: 'DELETE',

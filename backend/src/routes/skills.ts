@@ -79,6 +79,18 @@ router.patch('/:skillId', async (req: Request, res: Response) => {
     return
   }
 
+  const pair = await prisma.skillPair.findFirst({ where: { playerDomainSkillId: skill.id } })
+  if (pair) {
+    const { breakPair } = req.body
+    if (breakPair !== true && breakPair !== false) {
+      res.status(400).json({ error: 'breakPair is required when the Skill has a pair', hasPair: true })
+      return
+    }
+    if (breakPair === true) {
+      await prisma.skillPair.delete({ where: { id: pair.id } })
+    }
+  }
+
   const updated = await prisma.skill.update({ where: { id: skill.id }, data: { name: trimmed } })
   res.json(updated)
 })
