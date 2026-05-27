@@ -14,6 +14,19 @@ You are RALPH — an autonomous coding agent.
 
 Work on issue **#{{ISSUE_NUMBER}}** only. Do not pick a different issue.
 
+## Database setup (run once before anything else)
+
+PostgreSQL is installed locally. Bootstrap it before touching any backend code or tests:
+
+```bash
+pg_ctlcluster $(pg_lsclusters -h | awk '{print $1, $2}' | tail -1) start || true
+sudo -u postgres psql -c "CREATE USER roundnet WITH PASSWORD 'roundnet';" 2>/dev/null || true
+sudo -u postgres psql -c "CREATE DATABASE roundnet OWNER roundnet;" 2>/dev/null || true
+export DATABASE_URL="postgresql://roundnet:roundnet@localhost:5432/roundnet"
+```
+
+Then push the schema: `cd backend && DATABASE_URL=$DATABASE_URL npx prisma db push`.
+
 ## Workflow
 
 1. **Explore** — read the issue carefully. Pull in the parent PRD if referenced. Read the relevant source files and tests before writing any code.

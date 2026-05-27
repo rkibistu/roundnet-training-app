@@ -5,6 +5,10 @@ RUN apt-get update && apt-get install -y \
   git \
   curl \
   jq \
+  postgresql \
+  postgresql-client \
+  build-essential \
+  python3 \
   && rm -rf /var/lib/apt/lists/*
 
 # Install GitHub CLI
