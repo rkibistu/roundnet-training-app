@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
   postgresql-client \
   build-essential \
   python3 \
+  sudo \
   && rm -rf /var/lib/apt/lists/*
 
 # Install GitHub CLI
@@ -19,6 +20,12 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
   && apt-get update && apt-get install -y gh \
   && rm -rf /var/lib/apt/lists/*
 
+# Create roundnet DB user and database at build time
+RUN service postgresql start \
+  && sudo -u postgres psql -c "CREATE USER roundnet WITH PASSWORD 'roundnet';" \
+  && sudo -u postgres psql -c "CREATE DATABASE roundnet OWNER roundnet;" \
+  && service postgresql stop
+
 # Build-args for UID/GID alignment: sandcastle docker build-image
 # defaults these to the host user's UID/GID so image-built files
 # and bind-mounted files share an owner without runtime chown.
@@ -27,6 +34,10 @@ ARG AGENT_GID=1000
 
 # Rename the base image's "node" user to "agent" and align UID/GID.
 RUN groupmod -o -g $AGENT_GID node && usermod -o -u $AGENT_UID -g $AGENT_GID -d /home/agent -m -l agent node
+
+# Allow agent to start/stop postgres without a password
+RUN echo "agent ALL=(ALL) NOPASSWD: /usr/sbin/service postgresql start, /usr/sbin/service postgresql stop" >> /etc/sudoers
+
 USER ${AGENT_UID}:${AGENT_GID}
 
 # Install Claude Code CLI
@@ -40,4 +51,4 @@ WORKDIR /home/agent
 # In worktree sandbox mode, Sandcastle bind-mounts the git worktree at /home/agent/workspace
 # and overrides the working directory to /home/agent/workspace at container start.
 # Structure your Dockerfile so that /home/agent/workspace can serve as the project root.
-ENTRYPOINT ["sleep", "infinity"]
+ENTRYPOINT ["sh", "-c", "sudo service postgresql start && sleep infinity"]
