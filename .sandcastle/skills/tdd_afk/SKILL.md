@@ -1,6 +1,6 @@
 ---
-name: tdd
-description: Test-driven development with red-green-refactor loop. Use when user wants to build features or fix bugs using TDD, mentions "red-green-refactor", wants integration tests, or asks for test-first development.
+name: tdd_afk
+description: AFK variant of TDD for Sandcastle agents. Same red-green-refactor loop but all planning decisions are made autonomously from the issue description — no human confirmation steps.
 ---
 
 # Test-Driven Development
@@ -48,16 +48,11 @@ When exploring the codebase, use the project's domain glossary so that test name
 
 Before writing any code:
 
-- [ ] Confirm with user what interface changes are needed
-- [ ] Confirm with user which behaviors to test (prioritize)
 - [ ] Identify opportunities for [deep modules](deep-modules.md) (small interface, deep implementation)
 - [ ] Design interfaces for [testability](interface-design.md)
-- [ ] List the behaviors to test (not implementation steps)
-- [ ] Get user approval on the plan
+- [ ] List the behaviors to test (not implementation steps) — derive these from the issue description and context
 
-Ask: "What should the public interface look like? Which behaviors are most important to test?"
-
-**You can't test everything.** Confirm with the user exactly which behaviors matter most. Focus testing effort on critical paths and complex logic, not every possible edge case.
+**You are running AFK.** There is no human to confirm with. Make all planning decisions autonomously based on the issue description, the codebase structure, and the domain context. Focus testing effort on the critical paths described in the issue.
 
 ### 2. Tracer Bullet
 

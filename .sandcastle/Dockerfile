@@ -45,10 +45,14 @@ RUN curl -fsSL https://claude.ai/install.sh | bash
 
 # Add Claude to PATH
 ENV PATH="/home/agent/.local/bin:$PATH"
+ENV DATABASE_URL="postgresql://roundnet:roundnet@localhost:5432/roundnet"
 
 WORKDIR /home/agent
+
+COPY --chown=${AGENT_UID}:${AGENT_GID} entrypoint.sh /home/agent/entrypoint.sh
+RUN chmod +x /home/agent/entrypoint.sh
 
 # In worktree sandbox mode, Sandcastle bind-mounts the git worktree at /home/agent/workspace
 # and overrides the working directory to /home/agent/workspace at container start.
 # Structure your Dockerfile so that /home/agent/workspace can serve as the project root.
-ENTRYPOINT ["sh", "-c", "sudo service postgresql start && sleep infinity"]
+ENTRYPOINT ["/home/agent/entrypoint.sh"]

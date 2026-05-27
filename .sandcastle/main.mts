@@ -35,8 +35,10 @@ const hooks = {
   sandbox: { 
     onSandboxReady: [
       { command: "d=$(git rev-parse --git-dir) && mkdir -p \"$d/info\" && echo 'package-lock.json' >> \"$d/info/exclude\"" }, 
-      { command: "mkdir -p ~/.claude/skills && cp -r .sandcastle/skills/tdd ~/.claude/skills/" },
-      { command: "npm install", timeoutMs: 300_000}] },
+      { command: "mkdir -p ~/.claude/skills && cp -r .sandcastle/skills/tdd_afk ~/.claude/skills/" },
+      { command: "cd /home/agent/workspace/backend && npm install", timeoutMs: 300_000 },
+      { command: "cd /home/agent/workspace/frontend && npm install", timeoutMs: 300_000 },
+      { command: "cd /home/agent/workspace/backend && DATABASE_URL='postgresql://roundnet:roundnet@localhost:5432/roundnet' npx prisma migrate deploy", timeoutMs: 60_000 }] },
 };
 
 console.log("\nStarting implementation...\n");
@@ -58,7 +60,7 @@ const implement = await sandcastle.run({
   sandbox: docker(),
   hooks,
   branchStrategy,
-  copyToWorktree: ["node_modules"],
+  copyToWorktree: ["node_modules", "backend/node_modules", "frontend/node_modules"],
   promptFile: "./.sandcastle/implement-single-prompt.md",
   promptArgs: { ISSUE_NUMBER },
   completionSignal: ["<promise>COMPLETE</promise>", "<promise>BLOCKED</promise>", "<promise>ERROR</promise>"],
@@ -86,7 +88,7 @@ if (implement.completionSignal === "<promise>BLOCKED</promise>") {
     sandbox: docker(),
     hooks,
     branchStrategy,
-    copyToWorktree: ["node_modules"],
+    copyToWorktree: ["node_modules", "backend/node_modules", "frontend/node_modules"],
     promptFile: "./.sandcastle/review-prompt.md",
     promptArgs: { BRANCH: branch },
   });
