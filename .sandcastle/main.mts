@@ -54,7 +54,7 @@ console.log(`\n=== Phase 1: Implement — issue #${ISSUE_NUMBER} ===\n`);
 const implement = await sandcastle.run({
   name: "implementer",
   maxIterations: 2,
-  agent: sandcastle.claudeCode("claude-opus-4-7"),
+  agent: sandcastle.claudeCode("sonnet-4-6", { effort: "medium" }),
   sandbox: docker(),
   hooks,
   branchStrategy,
