@@ -27,12 +27,17 @@ import { execSync } from "node:child_process";
 const rawArgs = process.argv.slice(2);
 const ISSUE_NUMBER = rawArgs.find(a => !a.startsWith("-"));
 const branchFlagIdx = rawArgs.indexOf("--branch");
+if (branchFlagIdx !== -1 && !rawArgs[branchFlagIdx + 1]) {
+  console.error("Error: --branch requires a branch name.");
+  console.error("  npx tsx .sandcastle/workflow/main-interactive.mts <issue-number> --branch <branch-name>");
+  process.exit(1);
+}
 const EXISTING_BRANCH = branchFlagIdx !== -1 ? rawArgs[branchFlagIdx + 1] : undefined;
 
 if (!ISSUE_NUMBER) {
   console.error("Usage:");
-  console.error("  npx tsx .sandcastle/main-interactive.mts <issue-number>");
-  console.error("  npx tsx .sandcastle/main-interactive.mts <issue-number> --branch <branch-name>");
+  console.error("  npx tsx .sandcastle/workflow/main-interactive.mts <issue-number>");
+  console.error("  npx tsx .sandcastle/workflow/main-interactive.mts <issue-number> --branch <branch-name>");
   process.exit(1);
 }
 
@@ -133,6 +138,12 @@ while (true) {
 
   // --- Option 1: PR + close ---
   if (action === 1) {
+    const confirm = await ask(`\nCreate PR and close issue #${ISSUE_NUMBER}? (y/n): `);
+    if (confirm.toLowerCase() !== "y") {
+      console.log("Cancelled. Returning to menu.");
+      continue;
+    }
+
     console.log("\nFetching issue title for PR...");
     const issueJson = execSync(
       `gh issue view ${ISSUE_NUMBER} --json title,number --jq '{title, number}'`,
@@ -140,13 +151,23 @@ while (true) {
     );
     const { title } = JSON.parse(issueJson) as { title: string; number: number };
 
-    console.log("Creating PR...");
-    const prUrl = execSync(
-      `gh pr create --head "${branch}" --base main --title "RALPH: ${title}" --body "Closes #${ISSUE_NUMBER}"`,
+    const existingPrUrl = execSync(
+      `gh pr list --head "${branch}" --json url --jq '.[0].url // ""'`,
       { encoding: "utf8" }
     ).trim();
 
-    console.log(`PR created: ${prUrl}`);
+    let prUrl: string;
+    if (existingPrUrl) {
+      prUrl = existingPrUrl;
+      console.log(`PR already exists (branch updated): ${prUrl}`);
+    } else {
+      console.log("Creating PR...");
+      prUrl = execSync(
+        `gh pr create --head "${branch}" --base main --title "RALPH: ${title}" --body "Closes #${ISSUE_NUMBER}"`,
+        { encoding: "utf8" }
+      ).trim();
+      console.log(`PR created: ${prUrl}`);
+    }
 
     execSync(`gh issue close ${ISSUE_NUMBER} --comment "Completed. PR: ${prUrl}"`, { stdio: "inherit" });
 
@@ -161,14 +182,18 @@ while (true) {
   if (action === 2) {
     adjIssueNumber = await ask("\nEnter the adjustment issue number: ");
   } else {
-    console.log("\nDescribe the adjustments needed (press Enter twice when done):");
-    const lines: string[] = [];
     while (true) {
-      const line = await ask("> ");
-      if (line === "" && lines.at(-1) === "") break;
-      lines.push(line);
+      console.log("\nDescribe the adjustments needed (press Enter twice when done):");
+      const lines: string[] = [];
+      while (true) {
+        const line = await ask("> ");
+        if (line === "" && lines.at(-1) === "") break;
+        lines.push(line);
+      }
+      adjText = lines.join("\n").trim();
+      if (adjText) break;
+      console.log("Adjustment text cannot be empty. Please describe what needs to change.");
     }
-    adjText = lines.join("\n").trim();
   }
 
   const continueSession = await askChoice("Continue on the same session?", [
