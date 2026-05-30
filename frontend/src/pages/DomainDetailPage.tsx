@@ -169,12 +169,27 @@ export default function DomainDetailPage() {
 
   async function handleAttuneConfirm(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (!domain || !selectedTargetId) return
+    if (!domain) return
     setAttuneError(null)
     try {
-      const result = await attuneDomain(domain.id, selectedTargetId)
-      setAttunement({ rootDomainId: result.rootDomainId })
-      setAttuning(false)
+      const result = await attuneDomain(domain.id, selectedTargetId || undefined)
+      if (!selectedTargetId) {
+        navigate(`/library/${result.id}`)
+      } else {
+        setAttunement({ rootDomainId: result.rootDomainId! })
+        setAttuning(false)
+      }
+    } catch (err) {
+      setAttuneError(err instanceof Error ? err.message : 'Failed to attune')
+    }
+  }
+
+  async function handleAttuneCopy() {
+    if (!domain) return
+    setAttuneError(null)
+    try {
+      const result = await attuneDomain(domain.id)
+      navigate(`/library/${result.id}`)
     } catch (err) {
       setAttuneError(err instanceof Error ? err.message : 'Failed to attune')
     }
@@ -222,6 +237,8 @@ export default function DomainDetailPage() {
   const activeSkills = skills.filter(s => !s.archivedAt)
   const archivedSkills = skills.filter(s => !!s.archivedAt)
   const pairedSkillIds = new Set(pairs.map(p => p.playerDomainSkillId))
+  const callerDomains = allDomains.filter(d => d.ownerId === player?.id)
+  const hasCallerDomains = callerDomains.length > 0
 
   return (
     <main className="p-4 flex flex-col gap-5 max-w-2xl mx-auto">
@@ -242,8 +259,14 @@ export default function DomainDetailPage() {
           </div>
         </form>
       ) : (
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <h1 className="text-2xl font-bold text-brand-darkest dark:text-brand-lightest">{domain.name}</h1>
+          {!domain.rootDomainId && !isOwner && (
+            <span className="text-xs font-medium uppercase tracking-wide bg-brand-accent/10 text-brand-accent rounded px-2 py-0.5">Root Domain</span>
+          )}
+          {isOwner && isAttuned && rootDomain && (
+            <span className="text-xs text-brand-dark dark:text-brand-light">Attuned to: <strong>{rootDomain.name}</strong></span>
+          )}
           {isOwner && (
             <button
               type="button"
@@ -276,28 +299,46 @@ export default function DomainDetailPage() {
               </div>
             </form>
           ) : attuning ? (
-            <form onSubmit={handleAttuneConfirm} className="flex flex-col gap-2 border rounded p-3">
+            <div className="flex flex-col gap-2 border rounded p-3">
               <p className="text-sm">Join this Domain's leaderboard group by attuning to it.</p>
-              <label className="flex flex-col gap-1">
-                <span className="text-sm">Your Domain</span>
-                <select
-                  aria-label="Your domain to attune"
-                  className="border rounded p-2"
-                  value={selectedTargetId}
-                  onChange={e => setSelectedTargetId(e.target.value)}
-                >
-                  <option value="">Select…</option>
-                  {allDomains.filter(d => d.ownerId === player?.id).map(d => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
-              </label>
-              {attuneError && <p className="text-sm text-red-600">{attuneError}</p>}
-              <div className="flex gap-2">
-                <button type="submit" className="rounded bg-brand-accent text-white px-3 py-1">Attune</button>
-                <button type="button" onClick={() => setAttuning(false)} className="rounded border px-3 py-1">Cancel</button>
-              </div>
-            </form>
+              {!hasCallerDomains ? (
+                <>
+                  {attuneError && <p className="text-sm text-red-600">{attuneError}</p>}
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className="rounded bg-brand-accent text-white px-3 py-1"
+                      onClick={handleAttuneCopy}
+                    >
+                      Attune (create copy)
+                    </button>
+                    <button type="button" onClick={() => setAttuning(false)} className="rounded border px-3 py-1">Cancel</button>
+                  </div>
+                </>
+              ) : (
+                <form onSubmit={handleAttuneConfirm} className="flex flex-col gap-2">
+                  <label className="flex flex-col gap-1">
+                    <span className="text-sm">Your Domain</span>
+                    <select
+                      aria-label="Your domain to attune"
+                      className="border rounded p-2"
+                      value={selectedTargetId}
+                      onChange={e => setSelectedTargetId(e.target.value)}
+                    >
+                      <option value="">Attune (create copy)</option>
+                      {callerDomains.map(d => (
+                        <option key={d.id} value={d.id}>{d.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                  {attuneError && <p className="text-sm text-red-600">{attuneError}</p>}
+                  <div className="flex gap-2">
+                    <button type="submit" className="rounded bg-brand-accent text-white px-3 py-1">Attune</button>
+                    <button type="button" onClick={() => setAttuning(false)} className="rounded border px-3 py-1">Cancel</button>
+                  </div>
+                </form>
+              )}
+            </div>
           ) : (
             <div className="flex gap-2">
               <button

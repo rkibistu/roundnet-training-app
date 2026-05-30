@@ -148,6 +148,46 @@ router.post('/:id/attune', async (req: Request, res: Response) => {
   }
 
   const { callerDomainId } = req.body
+
+  // Flat model: if target is itself attuned, use its rootDomainId directly
+  const rootDomainId = target.rootDomainId ?? target.id
+
+  if (!callerDomainId) {
+    // Auto-copy path: create a copy of the root domain for the caller
+    const activeSkills = await prisma.skill.findMany({
+      where: { domainId: rootDomainId, archivedAt: null },
+    })
+
+    const newDomain = await prisma.habitDomain.create({
+      data: {
+        name: target.name,
+        ownerId: callerId,
+        accessibilityState: 'public',
+        rootDomainId,
+        skills: {
+          create: activeSkills.map(s => ({ name: s.name })),
+        },
+      },
+      include: { skills: true },
+    })
+
+    await prisma.attunement.create({
+      data: { domainId: newDomain.id, rootDomainId },
+    })
+
+    const rootSkillMap = new Map(activeSkills.map(s => [s.name, s.id]))
+    const pairData = newDomain.skills
+      .filter(s => rootSkillMap.has(s.name))
+      .map(s => ({ playerDomainSkillId: s.id, rootDomainSkillId: rootSkillMap.get(s.name)! }))
+
+    if (pairData.length > 0) {
+      await prisma.skillPair.createMany({ data: pairData })
+    }
+
+    res.status(201).json({ id: newDomain.id })
+    return
+  }
+
   const domain = await prisma.habitDomain.findUnique({ where: { id: callerDomainId } })
   if (!domain) {
     res.status(404).json({ error: 'Caller Domain not found' })
@@ -163,9 +203,6 @@ router.post('/:id/attune', async (req: Request, res: Response) => {
     res.status(400).json({ error: 'Domain is already attuned' })
     return
   }
-
-  // Flat model: if target is itself attuned, use its rootDomainId directly
-  const rootDomainId = target.rootDomainId ?? target.id
 
   const attunement = await prisma.attunement.create({
     data: { domainId: domain.id, rootDomainId },

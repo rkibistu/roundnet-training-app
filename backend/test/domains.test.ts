@@ -648,6 +648,87 @@ describe('DELETE /domains/:id/skill-pairs/:pairId', () => {
   })
 })
 
+describe('POST /domains/:id/attune — auto-copy path (no callerDomainId)', () => {
+  it('creates a new Domain owned by the caller with the Root Domain name and returns { id }', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const root = await prisma.habitDomain.create({ data: { name: 'Roundnet', ownerId: bob.playerId, accessibilityState: 'public' } })
+
+    const res = await request(app)
+      .post(`/domains/${root.id}/attune`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({})
+
+    expect(res.status).toBe(201)
+    expect(res.body).toHaveProperty('id')
+    expect(res.body.id).not.toBe(root.id)
+
+    const newDomain = await prisma.habitDomain.findUnique({ where: { id: res.body.id } })
+    expect(newDomain).not.toBeNull()
+    expect(newDomain!.name).toBe('Roundnet')
+    expect(newDomain!.ownerId).toBe(alice.playerId)
+  })
+
+  it('copies only active skills from the Root Domain into the new Domain', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const root = await prisma.habitDomain.create({ data: { name: 'Roundnet', ownerId: bob.playerId, accessibilityState: 'public' } })
+    await prisma.skill.create({ data: { name: 'Spike', domainId: root.id } })
+    await prisma.skill.create({ data: { name: 'OldMove', domainId: root.id, archivedAt: new Date() } })
+
+    const res = await request(app)
+      .post(`/domains/${root.id}/attune`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({})
+
+    expect(res.status).toBe(201)
+    const skills = await prisma.skill.findMany({ where: { domainId: res.body.id } })
+    expect(skills).toHaveLength(1)
+    expect(skills[0].name).toBe('Spike')
+    expect(skills[0].archivedAt).toBeNull()
+  })
+
+  it('creates an Attunement record linking the new Domain to the Root', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const root = await prisma.habitDomain.create({ data: { name: 'Roundnet', ownerId: bob.playerId, accessibilityState: 'public' } })
+
+    const res = await request(app)
+      .post(`/domains/${root.id}/attune`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({})
+
+    expect(res.status).toBe(201)
+    const attunement = await prisma.attunement.findFirst({ where: { domainId: res.body.id } })
+    expect(attunement).not.toBeNull()
+    expect(attunement!.rootDomainId).toBe(root.id)
+  })
+
+  it('auto-pairs all copied Skills to their corresponding Root Skills by exact name match', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const root = await prisma.habitDomain.create({ data: { name: 'Roundnet', ownerId: bob.playerId, accessibilityState: 'public' } })
+    const rootSkill1 = await prisma.skill.create({ data: { name: 'Spike', domainId: root.id } })
+    const rootSkill2 = await prisma.skill.create({ data: { name: 'Defense', domainId: root.id } })
+    await prisma.skill.create({ data: { name: 'OldMove', domainId: root.id, archivedAt: new Date() } })
+
+    const res = await request(app)
+      .post(`/domains/${root.id}/attune`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({})
+
+    expect(res.status).toBe(201)
+    const newSkills = await prisma.skill.findMany({ where: { domainId: res.body.id } })
+    const pairs = await prisma.skillPair.findMany({
+      where: { playerDomainSkillId: { in: newSkills.map(s => s.id) } },
+    })
+    expect(pairs).toHaveLength(2)
+    const rootSkillIds = new Set(pairs.map(p => p.rootDomainSkillId))
+    expect(rootSkillIds).toContain(rootSkill1.id)
+    expect(rootSkillIds).toContain(rootSkill2.id)
+  })
+})
+
 describe('DELETE /domains/:id', () => {
   it('hard-deletes a Domain that has no attuned Players when the caller is the owner', async () => {
     const alice = await registerAndLogin('alice@example.com')

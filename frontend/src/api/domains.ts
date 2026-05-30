@@ -89,11 +89,14 @@ export interface SkillPair {
   createdAt: string
 }
 
-export async function attuneDomain(targetDomainId: string, callerDomainId: string): Promise<{ id: string; domainId: string; rootDomainId: string; createdAt: string }> {
+export async function attuneDomain(
+  targetDomainId: string,
+  callerDomainId?: string
+): Promise<{ id: string; domainId?: string; rootDomainId?: string; createdAt?: string }> {
   const res = await fetch(`${BASE}/domains/${targetDomainId}/attune`, {
     method: 'POST',
     headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ callerDomainId }),
+    body: JSON.stringify(callerDomainId ? { callerDomainId } : {}),
   })
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))

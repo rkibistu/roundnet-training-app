@@ -376,6 +376,84 @@ describe('DomainDetailPage — Attune', () => {
   })
 })
 
+describe('DomainDetailPage — Attune auto-copy path', () => {
+  it('shows only "Attune (create copy)" button when caller has no domains', async () => {
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(otherDomain)
+    vi.mocked(domainsApi.listDomains).mockResolvedValue([])
+
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: /^attune$/i }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /attune \(create copy\)/i })).toBeInTheDocument()
+      expect(screen.queryByRole('combobox', { name: /your domain to attune/i })).not.toBeInTheDocument()
+    })
+  })
+
+  it('shows the domain selector with "Attune (create copy)" option when caller has domains', async () => {
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(otherDomain)
+    vi.mocked(domainsApi.listDomains).mockResolvedValue([
+      { ...ownedDomain, id: 'my-d', name: 'My Domain', ownerId: 'me' },
+    ])
+
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: /^attune$/i }))
+
+    const select = await screen.findByRole('combobox', { name: /your domain to attune/i })
+    expect(select).toBeInTheDocument()
+    const options = select.querySelectorAll('option')
+    const optionTexts = Array.from(options).map(o => o.textContent)
+    expect(optionTexts).toContain('Attune (create copy)')
+    expect(optionTexts).toContain('My Domain')
+  })
+
+  it('auto-copy attune with no callerDomainId selected navigates to the new domain', async () => {
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(otherDomain)
+    vi.mocked(domainsApi.listDomains).mockResolvedValue([])
+    vi.mocked(domainsApi.attuneDomain).mockResolvedValue({ id: 'new-domain-id' })
+
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: /^attune$/i }))
+    await userEvent.click(await screen.findByRole('button', { name: /attune \(create copy\)/i }))
+
+    await waitFor(() => {
+      expect(domainsApi.attuneDomain).toHaveBeenCalledWith('d1')
+      expect(mockNavigate).toHaveBeenCalledWith('/library/new-domain-id')
+    })
+  })
+
+  it('selecting "Attune (create copy)" option from domain selector navigates to the new domain', async () => {
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(otherDomain)
+    vi.mocked(domainsApi.listDomains).mockResolvedValue([
+      { ...ownedDomain, id: 'my-d', name: 'My Domain', ownerId: 'me' },
+    ])
+    vi.mocked(domainsApi.attuneDomain).mockResolvedValue({ id: 'new-domain-id' })
+
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: /^attune$/i }))
+    const select = await screen.findByRole('combobox', { name: /your domain to attune/i })
+    await userEvent.selectOptions(select, '')
+    await userEvent.click(screen.getAllByRole('button', { name: /^attune$/i }).find(b => b.getAttribute('type') === 'submit')!)
+
+    await waitFor(() => {
+      expect(domainsApi.attuneDomain).toHaveBeenCalledWith('d1', undefined)
+      expect(mockNavigate).toHaveBeenCalledWith('/library/new-domain-id')
+    })
+  })
+
+  it('shows "Root Domain" badge on a domain not owned by the caller that has no rootDomainId', async () => {
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(otherDomain)
+
+    renderPage()
+
+    expect(await screen.findByText(/root domain/i)).toBeInTheDocument()
+  })
+})
+
 describe('DomainDetailPage — Skill pairing', () => {
   it('shows Manage pairs button when owner is attuned', async () => {
     const attuned = { ...ownedDomain, rootDomainId: 'root-d' }
