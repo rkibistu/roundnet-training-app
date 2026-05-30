@@ -62,6 +62,43 @@ async function askChoice(prompt: string, choices: string[]): Promise<number> {
   }
 }
 
+// Returns true if it's safe to proceed, false if the user wants to abort.
+async function ensureBranchNotCheckedOut(branch: string): Promise<boolean> {
+  const current = execSync("git branch --show-current", { encoding: "utf8" }).trim();
+  if (current !== branch) return true;
+
+  console.log(`\nWarning: branch '${branch}' is currently checked out in your working directory.`);
+  console.log("The agent needs a worktree for this branch, which requires it not to be checked out here.\n");
+
+  const choice = await askChoice("How would you like to resolve this?", [
+    "Switch to main automatically (script will run: git checkout main)",
+    "I will switch manually — script will wait for my confirmation",
+  ]);
+
+  if (choice === 1) {
+    try {
+      execSync("git checkout main", { stdio: "pipe" });
+      console.log("Switched to main.");
+    } catch {
+      console.log("\nCould not switch automatically (uncommitted changes or other error).");
+      console.log("Please resolve any conflicts and run: git checkout main");
+      console.log("Then press Enter to continue...");
+      await ask("");
+    }
+  } else {
+    console.log(`\nPlease run: git checkout main (or any other branch)`);
+    console.log("Then press Enter when ready...");
+    await ask("");
+  }
+
+  const nowCurrent = execSync("git branch --show-current", { encoding: "utf8" }).trim();
+  if (nowCurrent === branch) {
+    console.log(`\nBranch '${branch}' is still checked out here. Returning to menu.`);
+    return false;
+  }
+  return true;
+}
+
 // ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
@@ -263,7 +300,11 @@ while (true) {
       promptArgs: undefined,
     });
   } else {
-    // Fresh session
+    // Fresh session — check that the branch isn't currently checked out in the
+    // main worktree, which would prevent the agent from creating its own worktree.
+    const canProceed = await ensureBranchNotCheckedOut(branch);
+    if (!canProceed) continue;
+
     if (adjIssueNumber !== undefined) {
       lastRun = await sandcastle.run({
         ...sharedRunOptions,
