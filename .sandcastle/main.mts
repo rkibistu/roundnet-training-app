@@ -1,1 +1,1 @@
-import "./main-interactive.mts";
+import "./workflow/main-interactive.mts";

@@ -1,10 +1,10 @@
 // Interactive workflow: implement → review loop
 //
 // Fresh start (implement from scratch):
-//   npx tsx .sandcastle/main-interactive.mts <issue-number>
+//   npx tsx .sandcastle/workflow/main-interactive.mts <issue-number>
 //
 // Resume existing branch (skip implementation, go straight to review menu):
-//   npx tsx .sandcastle/main-interactive.mts <issue-number> --branch <branch-name>
+//   npx tsx .sandcastle/workflow/main-interactive.mts <issue-number> --branch <branch-name>
 //
 // After each run you can:
 //   1. PR and close issue — everything OK
@@ -102,7 +102,7 @@ if (EXISTING_BRANCH) {
     name: "implementer",
     maxIterations: 5,
     branchStrategy,
-    promptFile: "./.sandcastle/implement-no-pr-prompt.md",
+    promptFile: "./.sandcastle/workflow/implement-no-pr-prompt.md",
     promptArgs: { ISSUE_NUMBER },
   });
 
@@ -240,7 +240,7 @@ while (true) {
         name: "adjuster",
         maxIterations: 5,
         branchStrategy,
-        promptFile: "./.sandcastle/adjust-from-issue-prompt.md",
+        promptFile: "./.sandcastle/workflow/adjust-from-issue-prompt.md",
         promptArgs: { ISSUE_NUMBER, ADJUSTMENT_ISSUE_NUMBER: adjIssueNumber },
       });
     } else {
@@ -249,7 +249,7 @@ while (true) {
         name: "adjuster",
         maxIterations: 5,
         branchStrategy,
-        promptFile: "./.sandcastle/adjust-from-input-prompt.md",
+        promptFile: "./.sandcastle/workflow/adjust-from-input-prompt.md",
         promptArgs: { ISSUE_NUMBER, ADJUSTMENT_TEXT: adjText! },
       });
     }
