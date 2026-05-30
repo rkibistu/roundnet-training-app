@@ -260,6 +260,7 @@ while (true) {
       name: "adjuster",
       branchStrategy,
       completionSignal: sharedRunOptions.completionSignal,
+      promptArgs: undefined,
     });
   } else {
     // Fresh session
