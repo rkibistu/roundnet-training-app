@@ -197,6 +197,78 @@ describe('PATCH /domains/:id/skills/:skillId', () => {
   })
 })
 
+describe('PATCH /domains/:id/skills/:skillId — breakPair', () => {
+  it('returns 400 when the skill has a pair and breakPair is not provided', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const mine = await makeDomain(alice.playerId, 'Mine')
+    const root = await makeDomain(bob.playerId, 'Root')
+    const mySkill = await prisma.skill.create({ data: { name: 'Old', domainId: mine.id } })
+    const rootSkill = await prisma.skill.create({ data: { name: 'Old', domainId: root.id } })
+    await prisma.skillPair.create({ data: { playerDomainSkillId: mySkill.id, rootDomainSkillId: rootSkill.id } })
+
+    const res = await request(app)
+      .patch(`/domains/${mine.id}/skills/${mySkill.id}`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ name: 'New' })
+
+    expect(res.status).toBe(400)
+    expect(res.body).toMatchObject({ hasPair: true })
+  })
+
+  it('renames the skill and keeps the pair when breakPair is false', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const mine = await makeDomain(alice.playerId, 'Mine')
+    const root = await makeDomain(bob.playerId, 'Root')
+    const mySkill = await prisma.skill.create({ data: { name: 'Old', domainId: mine.id } })
+    const rootSkill = await prisma.skill.create({ data: { name: 'Old', domainId: root.id } })
+    const pair = await prisma.skillPair.create({ data: { playerDomainSkillId: mySkill.id, rootDomainSkillId: rootSkill.id } })
+
+    const res = await request(app)
+      .patch(`/domains/${mine.id}/skills/${mySkill.id}`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ name: 'New', breakPair: false })
+
+    expect(res.status).toBe(200)
+    expect(res.body.name).toBe('New')
+    expect(await prisma.skillPair.findUnique({ where: { id: pair.id } })).not.toBeNull()
+  })
+
+  it('renames the skill and breaks the pair when breakPair is true', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const mine = await makeDomain(alice.playerId, 'Mine')
+    const root = await makeDomain(bob.playerId, 'Root')
+    const mySkill = await prisma.skill.create({ data: { name: 'Old', domainId: mine.id } })
+    const rootSkill = await prisma.skill.create({ data: { name: 'Old', domainId: root.id } })
+    const pair = await prisma.skillPair.create({ data: { playerDomainSkillId: mySkill.id, rootDomainSkillId: rootSkill.id } })
+
+    const res = await request(app)
+      .patch(`/domains/${mine.id}/skills/${mySkill.id}`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ name: 'New', breakPair: true })
+
+    expect(res.status).toBe(200)
+    expect(res.body.name).toBe('New')
+    expect(await prisma.skillPair.findUnique({ where: { id: pair.id } })).toBeNull()
+  })
+
+  it('renames without breakPair when the skill has no pair', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const mine = await makeDomain(alice.playerId, 'Mine')
+    const mySkill = await prisma.skill.create({ data: { name: 'Old', domainId: mine.id } })
+
+    const res = await request(app)
+      .patch(`/domains/${mine.id}/skills/${mySkill.id}`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ name: 'New' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.name).toBe('New')
+  })
+})
+
 describe('DELETE /domains/:id/skills/:skillId (archive)', () => {
   it('archives the Skill (sets archivedAt) and returns 204 when the caller is the owner', async () => {
     const alice = await registerAndLogin('alice@example.com')

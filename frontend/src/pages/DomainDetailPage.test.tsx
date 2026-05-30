@@ -47,6 +47,8 @@ const skill = (over: Partial<skillsApi.Skill> = {}): skillsApi.Skill => ({
 beforeEach(() => {
   vi.resetAllMocks()
   vi.mocked(skillsApi.listSkills).mockResolvedValue([])
+  vi.mocked(domainsApi.listSkillPairs).mockResolvedValue([])
+  vi.mocked(domainsApi.listDomains).mockResolvedValue([])
   mockNavigate.mockReset()
 })
 
@@ -316,6 +318,251 @@ describe('DomainDetailPage — Fracture', () => {
     await waitFor(() => {
       expect(domainsApi.fractureDomain).toHaveBeenCalledWith('d1', { name: 'My Copy' })
       expect(mockNavigate).toHaveBeenCalledWith('/library/new-d')
+    })
+  })
+})
+
+describe('DomainDetailPage — Attune', () => {
+  it('shows an Attune button for a Domain the caller does not own', async () => {
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(otherDomain)
+
+    renderPage()
+
+    expect(await screen.findByRole('button', { name: /attune/i })).toBeInTheDocument()
+  })
+
+  it('does not show the Attune button when the caller is the owner', async () => {
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(ownedDomain)
+
+    renderPage()
+
+    await screen.findByRole('heading', { name: /roundnet/i })
+    expect(screen.queryByRole('button', { name: /^attune$/i })).not.toBeInTheDocument()
+  })
+
+  it('clicking Attune reveals a form with a domain selector', async () => {
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(otherDomain)
+    vi.mocked(domainsApi.listDomains).mockResolvedValue([
+      { ...ownedDomain, id: 'my-d', name: 'My Domain', ownerId: 'me' },
+    ])
+
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: /^attune$/i }))
+
+    expect(await screen.findByRole('combobox', { name: /your domain to attune/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^attune$/i })).toBeInTheDocument()
+  })
+
+  it('confirming attune calls attuneDomain and navigates to the caller\'s own domain', async () => {
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(otherDomain)
+    vi.mocked(domainsApi.listDomains).mockResolvedValue([
+      { ...ownedDomain, id: 'my-d', name: 'My Domain', ownerId: 'me' },
+    ])
+    vi.mocked(domainsApi.attuneDomain).mockResolvedValue({
+      id: 'att1', domainId: 'my-d', rootDomainId: 'd1', createdAt: '',
+    })
+
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: /^attune$/i }))
+    const select = await screen.findByRole('combobox', { name: /your domain to attune/i })
+    await userEvent.selectOptions(select, 'my-d')
+    await userEvent.click(screen.getAllByRole('button', { name: /^attune$/i }).find(b => b.getAttribute('type') === 'submit')!)
+
+    await waitFor(() => {
+      expect(domainsApi.attuneDomain).toHaveBeenCalledWith('d1', 'my-d')
+      expect(mockNavigate).toHaveBeenCalledWith('/library/my-d')
+    })
+  })
+})
+
+describe('DomainDetailPage — Attune auto-copy path', () => {
+  it('shows only "Attune (create copy)" button when caller has no domains', async () => {
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(otherDomain)
+    vi.mocked(domainsApi.listDomains).mockResolvedValue([])
+
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: /^attune$/i }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /attune \(create copy\)/i })).toBeInTheDocument()
+      expect(screen.queryByRole('combobox', { name: /your domain to attune/i })).not.toBeInTheDocument()
+    })
+  })
+
+  it('shows the domain selector with "Attune (create copy)" option when caller has domains', async () => {
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(otherDomain)
+    vi.mocked(domainsApi.listDomains).mockResolvedValue([
+      { ...ownedDomain, id: 'my-d', name: 'My Domain', ownerId: 'me' },
+    ])
+
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: /^attune$/i }))
+
+    const select = await screen.findByRole('combobox', { name: /your domain to attune/i })
+    expect(select).toBeInTheDocument()
+    const options = select.querySelectorAll('option')
+    const optionTexts = Array.from(options).map(o => o.textContent)
+    expect(optionTexts).toContain('Attune (create copy)')
+    expect(optionTexts).toContain('My Domain')
+  })
+
+  it('auto-copy attune with no callerDomainId selected navigates to the new domain', async () => {
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(otherDomain)
+    vi.mocked(domainsApi.listDomains).mockResolvedValue([])
+    vi.mocked(domainsApi.attuneDomain).mockResolvedValue({ id: 'new-domain-id' })
+
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: /^attune$/i }))
+    await userEvent.click(await screen.findByRole('button', { name: /attune \(create copy\)/i }))
+
+    await waitFor(() => {
+      expect(domainsApi.attuneDomain).toHaveBeenCalledWith('d1')
+      expect(mockNavigate).toHaveBeenCalledWith('/library/new-domain-id')
+    })
+  })
+
+  it('selecting "Attune (create copy)" option from domain selector navigates to the new domain', async () => {
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(otherDomain)
+    vi.mocked(domainsApi.listDomains).mockResolvedValue([
+      { ...ownedDomain, id: 'my-d', name: 'My Domain', ownerId: 'me' },
+    ])
+    vi.mocked(domainsApi.attuneDomain).mockResolvedValue({ id: 'new-domain-id' })
+
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: /^attune$/i }))
+    const select = await screen.findByRole('combobox', { name: /your domain to attune/i })
+    await userEvent.selectOptions(select, '')
+    await userEvent.click(screen.getAllByRole('button', { name: /^attune$/i }).find(b => b.getAttribute('type') === 'submit')!)
+
+    await waitFor(() => {
+      expect(domainsApi.attuneDomain).toHaveBeenCalledWith('d1', undefined)
+      expect(mockNavigate).toHaveBeenCalledWith('/library/new-domain-id')
+    })
+  })
+
+  it('shows "Root Domain" badge on a domain not owned by the caller that has no rootDomainId', async () => {
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(otherDomain)
+
+    renderPage()
+
+    expect(await screen.findByText(/root domain/i)).toBeInTheDocument()
+  })
+})
+
+describe('DomainDetailPage — Skill pairing', () => {
+  it('shows Manage pairs button when owner is attuned', async () => {
+    const attuned = { ...ownedDomain, rootDomainId: 'root-d' }
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(attuned)
+    vi.mocked(domainsApi.listSkillPairs).mockResolvedValue([])
+    vi.mocked(skillsApi.listSkills).mockResolvedValue([skill({ id: 's1', name: 'Serving' })])
+
+    renderPage()
+
+    expect(await screen.findByRole('button', { name: /manage pairs/i })).toBeInTheDocument()
+  })
+
+  it('does not show Manage pairs for a non-owner', async () => {
+    vi.mocked(domainsApi.getDomain).mockResolvedValue({ ...otherDomain, rootDomainId: 'root-d' })
+
+    renderPage()
+
+    await screen.findByRole('heading', { name: /theirs/i })
+    expect(screen.queryByRole('button', { name: /manage pairs/i })).not.toBeInTheDocument()
+  })
+
+  it('shows skill pairing UI with side-by-side columns when Manage pairs clicked', async () => {
+    const attuned = { ...ownedDomain, rootDomainId: 'root-d' }
+    const rootDomainData = { ...otherDomain, id: 'root-d', name: 'Root Domain', ownerId: 'other' }
+    vi.mocked(domainsApi.getDomain).mockImplementation(async (id) => id === 'root-d' ? rootDomainData : attuned)
+    vi.mocked(skillsApi.listSkills).mockImplementation(async (domainId) =>
+      domainId === 'root-d'
+        ? [skill({ id: 'rs1', name: 'RootSkill', domainId: 'root-d' })]
+        : [skill({ id: 's1', name: 'MySkill' })]
+    )
+
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: /manage pairs/i }))
+
+    expect(await screen.findByText('Your Skills')).toBeInTheDocument()
+    expect(screen.getByText(/root domain skills/i)).toBeInTheDocument()
+    expect(screen.getAllByText('MySkill').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('RootSkill').length).toBeGreaterThan(0)
+  })
+
+  it('unpaired active skills are visually distinct when domain is attuned', async () => {
+    const attuned = { ...ownedDomain, rootDomainId: 'root-d' }
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(attuned)
+    vi.mocked(skillsApi.listSkills).mockResolvedValue([skill({ id: 's1', name: 'Unpaired' })])
+    vi.mocked(domainsApi.listSkillPairs).mockResolvedValue([])
+
+    renderPage()
+
+    const label = await screen.findByText(/not paired — counts toward Domain Level only/i)
+    expect(label).toBeInTheDocument()
+  })
+
+  it('paired skills do not show the unpaired label', async () => {
+    const attuned = { ...ownedDomain, rootDomainId: 'root-d' }
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(attuned)
+    vi.mocked(skillsApi.listSkills).mockResolvedValue([skill({ id: 's1', name: 'Paired' })])
+    vi.mocked(domainsApi.listSkillPairs).mockResolvedValue([
+      { id: 'p1', playerDomainSkillId: 's1', rootDomainSkillId: 'rs1', createdAt: '' },
+    ])
+
+    renderPage()
+
+    await screen.findByText('Paired')
+    expect(screen.queryByText(/not paired — counts toward Domain Level only/i)).not.toBeInTheDocument()
+  })
+})
+
+describe('DomainDetailPage — Skill rename with pair', () => {
+  it('shows a modal asking to keep or break the pair when the skill has a pair', async () => {
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(ownedDomain)
+    vi.mocked(skillsApi.listSkills).mockResolvedValue([skill({ id: 's1', name: 'Old' })])
+    const pairError = new skillsApi.SkillHasPairError()
+    vi.mocked(skillsApi.renameSkill).mockRejectedValueOnce(pairError)
+    vi.mocked(skillsApi.renameSkill).mockResolvedValue(skill({ id: 's1', name: 'New' }))
+
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: /rename Old/i }))
+    const input = screen.getByLabelText(/rename skill/i)
+    await userEvent.clear(input)
+    await userEvent.type(input, 'New')
+    await userEvent.click(screen.getByRole('button', { name: /^save$/i }))
+
+    expect(await screen.findByText(/this skill has a pair/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /keep pair/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /break pair/i })).toBeInTheDocument()
+  })
+
+  it('choosing keep pair calls renameSkill with breakPair false', async () => {
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(ownedDomain)
+    vi.mocked(skillsApi.listSkills).mockResolvedValue([skill({ id: 's1', name: 'Old' })])
+    const pairError = new skillsApi.SkillHasPairError()
+    vi.mocked(skillsApi.renameSkill).mockRejectedValueOnce(pairError)
+    vi.mocked(skillsApi.renameSkill).mockResolvedValue(skill({ id: 's1', name: 'New' }))
+
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: /rename Old/i }))
+    const input = screen.getByLabelText(/rename skill/i)
+    await userEvent.clear(input)
+    await userEvent.type(input, 'New')
+    await userEvent.click(screen.getByRole('button', { name: /^save$/i }))
+    await screen.findByText(/this skill has a pair/i)
+    await userEvent.click(screen.getByRole('button', { name: /keep pair/i }))
+
+    await waitFor(() => {
+      expect(skillsApi.renameSkill).toHaveBeenCalledWith('d1', 's1', 'New', false)
     })
   })
 })

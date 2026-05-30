@@ -392,6 +392,345 @@ describe('POST /domains/:id/fracture', () => {
   })
 })
 
+describe('POST /domains/:id/attune', () => {
+  it('creates an Attunement when attuning to a public domain', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const root = await prisma.habitDomain.create({ data: { name: 'Root', ownerId: bob.playerId, accessibilityState: 'public' } })
+    const mine = await prisma.habitDomain.create({ data: { name: 'Mine', ownerId: alice.playerId, accessibilityState: 'public' } })
+
+    const res = await request(app)
+      .post(`/domains/${root.id}/attune`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ callerDomainId: mine.id })
+
+    expect(res.status).toBe(201)
+    expect(res.body).toMatchObject({ domainId: mine.id, rootDomainId: root.id })
+    const row = await prisma.attunement.findFirst({ where: { domainId: mine.id } })
+    expect(row?.rootDomainId).toBe(root.id)
+    const updatedDomain = await prisma.habitDomain.findUnique({ where: { id: mine.id } })
+    expect(updatedDomain?.rootDomainId).toBe(root.id)
+  })
+
+  it('resolves chain: attuning to an intermediary stores rootDomainId pointing to the actual root', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const charlie = await registerAndLogin('charlie@example.com')
+    const root = await prisma.habitDomain.create({ data: { name: 'Root', ownerId: alice.playerId, accessibilityState: 'public' } })
+    const intermediary = await prisma.habitDomain.create({ data: { name: 'Bob domain', ownerId: bob.playerId, accessibilityState: 'public', rootDomainId: root.id } })
+    await prisma.attunement.create({ data: { domainId: intermediary.id, rootDomainId: root.id } })
+    const mine = await prisma.habitDomain.create({ data: { name: 'Mine', ownerId: charlie.playerId, accessibilityState: 'public' } })
+
+    const res = await request(app)
+      .post(`/domains/${intermediary.id}/attune`)
+      .set('Authorization', `Bearer ${charlie.token}`)
+      .send({ callerDomainId: mine.id })
+
+    expect(res.status).toBe(201)
+    expect(res.body.rootDomainId).toBe(root.id)
+    const row = await prisma.attunement.findFirst({ where: { domainId: mine.id } })
+    expect(row?.rootDomainId).toBe(root.id)
+  })
+
+  it('returns 400 if the domain is already attuned', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const root = await prisma.habitDomain.create({ data: { name: 'Root', ownerId: bob.playerId, accessibilityState: 'public' } })
+    const mine = await prisma.habitDomain.create({ data: { name: 'Mine', ownerId: alice.playerId, accessibilityState: 'public' } })
+    await prisma.attunement.create({ data: { domainId: mine.id, rootDomainId: root.id } })
+
+    const res = await request(app)
+      .post(`/domains/${root.id}/attune`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ callerDomainId: mine.id })
+
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 403 if the target domain is private and the caller does not own it', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const privateRoot = await prisma.habitDomain.create({ data: { name: 'Secret', ownerId: bob.playerId, accessibilityState: 'private' } })
+    const mine = await prisma.habitDomain.create({ data: { name: 'Mine', ownerId: alice.playerId, accessibilityState: 'public' } })
+
+    const res = await request(app)
+      .post(`/domains/${privateRoot.id}/attune`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ callerDomainId: mine.id })
+
+    expect(res.status).toBe(403)
+  })
+
+  it('returns 403 when the caller does not own the domain being attuned', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const root = await prisma.habitDomain.create({ data: { name: 'Root', ownerId: alice.playerId, accessibilityState: 'public' } })
+    const bobs = await prisma.habitDomain.create({ data: { name: 'Bobs', ownerId: bob.playerId, accessibilityState: 'public' } })
+
+    const res = await request(app)
+      .post(`/domains/${root.id}/attune`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ callerDomainId: bobs.id })
+
+    expect(res.status).toBe(403)
+  })
+
+  it('returns 404 when the target domain does not exist', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const mine = await prisma.habitDomain.create({ data: { name: 'Mine', ownerId: alice.playerId, accessibilityState: 'public' } })
+
+    const res = await request(app)
+      .post('/domains/does-not-exist/attune')
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ callerDomainId: mine.id })
+
+    expect(res.status).toBe(404)
+  })
+})
+
+describe('GET /domains/:id/skill-pairs', () => {
+  it('lists SkillPairs for the domain', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const root = await prisma.habitDomain.create({ data: { name: 'Root', ownerId: bob.playerId, accessibilityState: 'public' } })
+    const mine = await prisma.habitDomain.create({ data: { name: 'Mine', ownerId: alice.playerId, accessibilityState: 'public' } })
+    const mySkill = await prisma.skill.create({ data: { name: 'Serving', domainId: mine.id } })
+    const rootSkill = await prisma.skill.create({ data: { name: 'Serving', domainId: root.id } })
+    await prisma.skillPair.create({ data: { playerDomainSkillId: mySkill.id, rootDomainSkillId: rootSkill.id } })
+
+    const res = await request(app)
+      .get(`/domains/${mine.id}/skill-pairs`)
+      .set('Authorization', `Bearer ${alice.token}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body).toHaveLength(1)
+    expect(res.body[0]).toMatchObject({ playerDomainSkillId: mySkill.id, rootDomainSkillId: rootSkill.id })
+  })
+
+  it('returns 404 when domain does not exist', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const res = await request(app).get('/domains/missing/skill-pairs').set('Authorization', `Bearer ${alice.token}`)
+    expect(res.status).toBe(404)
+  })
+})
+
+describe('POST /domains/:id/skill-pairs', () => {
+  it('creates a SkillPair when both skills belong to their respective domains', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const root = await prisma.habitDomain.create({ data: { name: 'Root', ownerId: bob.playerId, accessibilityState: 'public' } })
+    const mine = await prisma.habitDomain.create({ data: { name: 'Mine', ownerId: alice.playerId, accessibilityState: 'public' } })
+    await prisma.attunement.create({ data: { domainId: mine.id, rootDomainId: root.id } })
+    const mySkill = await prisma.skill.create({ data: { name: 'Serving', domainId: mine.id } })
+    const rootSkill = await prisma.skill.create({ data: { name: 'Serving', domainId: root.id } })
+
+    const res = await request(app)
+      .post(`/domains/${mine.id}/skill-pairs`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ playerSkillId: mySkill.id, rootSkillId: rootSkill.id })
+
+    expect(res.status).toBe(201)
+    expect(res.body).toMatchObject({ playerDomainSkillId: mySkill.id, rootDomainSkillId: rootSkill.id })
+    const stored = await prisma.skillPair.findFirst({ where: { playerDomainSkillId: mySkill.id } })
+    expect(stored).not.toBeNull()
+  })
+
+  it('returns 400 if rootSkillId does not belong to the attuned root domain', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const charlie = await registerAndLogin('charlie@example.com')
+    const root = await prisma.habitDomain.create({ data: { name: 'Root', ownerId: bob.playerId, accessibilityState: 'public' } })
+    const other = await prisma.habitDomain.create({ data: { name: 'Other', ownerId: charlie.playerId, accessibilityState: 'public' } })
+    const mine = await prisma.habitDomain.create({ data: { name: 'Mine', ownerId: alice.playerId, accessibilityState: 'public' } })
+    await prisma.attunement.create({ data: { domainId: mine.id, rootDomainId: root.id } })
+    const mySkill = await prisma.skill.create({ data: { name: 'A', domainId: mine.id } })
+    const otherSkill = await prisma.skill.create({ data: { name: 'B', domainId: other.id } })
+
+    const res = await request(app)
+      .post(`/domains/${mine.id}/skill-pairs`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ playerSkillId: mySkill.id, rootSkillId: otherSkill.id })
+
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 400 if playerSkillId does not belong to the domain', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const root = await prisma.habitDomain.create({ data: { name: 'Root', ownerId: bob.playerId, accessibilityState: 'public' } })
+    const mine = await prisma.habitDomain.create({ data: { name: 'Mine', ownerId: alice.playerId, accessibilityState: 'public' } })
+    const other = await prisma.habitDomain.create({ data: { name: 'Other', ownerId: alice.playerId, accessibilityState: 'public' } })
+    await prisma.attunement.create({ data: { domainId: mine.id, rootDomainId: root.id } })
+    const otherSkill = await prisma.skill.create({ data: { name: 'A', domainId: other.id } })
+    const rootSkill = await prisma.skill.create({ data: { name: 'A', domainId: root.id } })
+
+    const res = await request(app)
+      .post(`/domains/${mine.id}/skill-pairs`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ playerSkillId: otherSkill.id, rootSkillId: rootSkill.id })
+
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 400 if the domain has no attunement', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const root = await prisma.habitDomain.create({ data: { name: 'Root', ownerId: bob.playerId, accessibilityState: 'public' } })
+    const mine = await prisma.habitDomain.create({ data: { name: 'Mine', ownerId: alice.playerId, accessibilityState: 'public' } })
+    const mySkill = await prisma.skill.create({ data: { name: 'A', domainId: mine.id } })
+    const rootSkill = await prisma.skill.create({ data: { name: 'A', domainId: root.id } })
+
+    const res = await request(app)
+      .post(`/domains/${mine.id}/skill-pairs`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ playerSkillId: mySkill.id, rootSkillId: rootSkill.id })
+
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 403 when the caller is not the domain owner', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const domain = await prisma.habitDomain.create({ data: { name: 'Alice domain', ownerId: alice.playerId, accessibilityState: 'public' } })
+    const skill = await prisma.skill.create({ data: { name: 'A', domainId: domain.id } })
+
+    const res = await request(app)
+      .post(`/domains/${domain.id}/skill-pairs`)
+      .set('Authorization', `Bearer ${bob.token}`)
+      .send({ playerSkillId: skill.id, rootSkillId: skill.id })
+
+    expect(res.status).toBe(403)
+  })
+})
+
+describe('DELETE /domains/:id/skill-pairs/:pairId', () => {
+  it('destroys the SkillPair', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const root = await prisma.habitDomain.create({ data: { name: 'Root', ownerId: bob.playerId, accessibilityState: 'public' } })
+    const mine = await prisma.habitDomain.create({ data: { name: 'Mine', ownerId: alice.playerId, accessibilityState: 'public' } })
+    const mySkill = await prisma.skill.create({ data: { name: 'A', domainId: mine.id } })
+    const rootSkill = await prisma.skill.create({ data: { name: 'A', domainId: root.id } })
+    const pair = await prisma.skillPair.create({ data: { playerDomainSkillId: mySkill.id, rootDomainSkillId: rootSkill.id } })
+
+    const res = await request(app)
+      .delete(`/domains/${mine.id}/skill-pairs/${pair.id}`)
+      .set('Authorization', `Bearer ${alice.token}`)
+
+    expect(res.status).toBe(204)
+    expect(await prisma.skillPair.findUnique({ where: { id: pair.id } })).toBeNull()
+  })
+
+  it('returns 404 when the pair does not exist', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const mine = await prisma.habitDomain.create({ data: { name: 'Mine', ownerId: alice.playerId, accessibilityState: 'public' } })
+
+    const res = await request(app)
+      .delete(`/domains/${mine.id}/skill-pairs/missing`)
+      .set('Authorization', `Bearer ${alice.token}`)
+
+    expect(res.status).toBe(404)
+  })
+
+  it('returns 403 when the caller is not the domain owner', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const mine = await prisma.habitDomain.create({ data: { name: 'Mine', ownerId: alice.playerId, accessibilityState: 'public' } })
+    const root = await prisma.habitDomain.create({ data: { name: 'Root', ownerId: bob.playerId, accessibilityState: 'public' } })
+    const mySkill = await prisma.skill.create({ data: { name: 'A', domainId: mine.id } })
+    const rootSkill = await prisma.skill.create({ data: { name: 'A', domainId: root.id } })
+    const pair = await prisma.skillPair.create({ data: { playerDomainSkillId: mySkill.id, rootDomainSkillId: rootSkill.id } })
+
+    const res = await request(app)
+      .delete(`/domains/${mine.id}/skill-pairs/${pair.id}`)
+      .set('Authorization', `Bearer ${bob.token}`)
+
+    expect(res.status).toBe(403)
+    expect(await prisma.skillPair.findUnique({ where: { id: pair.id } })).not.toBeNull()
+  })
+})
+
+describe('POST /domains/:id/attune — auto-copy path (no callerDomainId)', () => {
+  it('creates a new Domain owned by the caller with the Root Domain name and returns { id }', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const root = await prisma.habitDomain.create({ data: { name: 'Roundnet', ownerId: bob.playerId, accessibilityState: 'public' } })
+
+    const res = await request(app)
+      .post(`/domains/${root.id}/attune`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({})
+
+    expect(res.status).toBe(201)
+    expect(res.body).toHaveProperty('id')
+    expect(res.body.id).not.toBe(root.id)
+
+    const newDomain = await prisma.habitDomain.findUnique({ where: { id: res.body.id } })
+    expect(newDomain).not.toBeNull()
+    expect(newDomain!.name).toBe('Roundnet')
+    expect(newDomain!.ownerId).toBe(alice.playerId)
+  })
+
+  it('copies only active skills from the Root Domain into the new Domain', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const root = await prisma.habitDomain.create({ data: { name: 'Roundnet', ownerId: bob.playerId, accessibilityState: 'public' } })
+    await prisma.skill.create({ data: { name: 'Spike', domainId: root.id } })
+    await prisma.skill.create({ data: { name: 'OldMove', domainId: root.id, archivedAt: new Date() } })
+
+    const res = await request(app)
+      .post(`/domains/${root.id}/attune`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({})
+
+    expect(res.status).toBe(201)
+    const skills = await prisma.skill.findMany({ where: { domainId: res.body.id } })
+    expect(skills).toHaveLength(1)
+    expect(skills[0].name).toBe('Spike')
+    expect(skills[0].archivedAt).toBeNull()
+  })
+
+  it('creates an Attunement record linking the new Domain to the Root', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const root = await prisma.habitDomain.create({ data: { name: 'Roundnet', ownerId: bob.playerId, accessibilityState: 'public' } })
+
+    const res = await request(app)
+      .post(`/domains/${root.id}/attune`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({})
+
+    expect(res.status).toBe(201)
+    const attunement = await prisma.attunement.findFirst({ where: { domainId: res.body.id } })
+    expect(attunement).not.toBeNull()
+    expect(attunement!.rootDomainId).toBe(root.id)
+  })
+
+  it('auto-pairs all copied Skills to their corresponding Root Skills by exact name match', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const root = await prisma.habitDomain.create({ data: { name: 'Roundnet', ownerId: bob.playerId, accessibilityState: 'public' } })
+    const rootSkill1 = await prisma.skill.create({ data: { name: 'Spike', domainId: root.id } })
+    const rootSkill2 = await prisma.skill.create({ data: { name: 'Defense', domainId: root.id } })
+    await prisma.skill.create({ data: { name: 'OldMove', domainId: root.id, archivedAt: new Date() } })
+
+    const res = await request(app)
+      .post(`/domains/${root.id}/attune`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({})
+
+    expect(res.status).toBe(201)
+    const newSkills = await prisma.skill.findMany({ where: { domainId: res.body.id } })
+    const pairs = await prisma.skillPair.findMany({
+      where: { playerDomainSkillId: { in: newSkills.map(s => s.id) } },
+    })
+    expect(pairs).toHaveLength(2)
+    const rootSkillIds = new Set(pairs.map(p => p.rootDomainSkillId))
+    expect(rootSkillIds).toContain(rootSkill1.id)
+    expect(rootSkillIds).toContain(rootSkill2.id)
+  })
+})
+
 describe('DELETE /domains/:id', () => {
   it('hard-deletes a Domain that has no attuned Players when the caller is the owner', async () => {
     const alice = await registerAndLogin('alice@example.com')

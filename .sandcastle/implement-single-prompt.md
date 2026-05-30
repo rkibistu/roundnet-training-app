@@ -33,7 +33,8 @@ Use the `/tdd_afk` skill to implement this issue.
 When implementation succeeds:
 - Run `npm run typecheck` from the backend directory. Fix any failures before proceeding.
 - Commit with message starting with `RALPH:`, listing key decisions and files changed.
-- Open a pull request with `gh pr create` — title starting with `RALPH:`, body summarising what was done and why.
+- If a PR already exists for this branch, update it with `gh pr edit` (update title/body as needed).
+- Otherwise, open a new PR with `gh pr create` — title starting with `RALPH:`, body summarising what was done and why.
 - Close the issue with `gh issue close {{ISSUE_NUMBER}} --comment "Completed. PR: <pr-url>"`.
 
 If blocked or errored:
