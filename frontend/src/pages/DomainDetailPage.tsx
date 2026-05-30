@@ -176,8 +176,7 @@ export default function DomainDetailPage() {
       if (!selectedTargetId) {
         navigate(`/library/${result.id}`)
       } else {
-        setAttunement({ rootDomainId: result.rootDomainId! })
-        setAttuning(false)
+        navigate(`/library/${selectedTargetId}`)
       }
     } catch (err) {
       setAttuneError(err instanceof Error ? err.message : 'Failed to attune')

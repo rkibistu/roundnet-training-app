@@ -354,7 +354,7 @@ describe('DomainDetailPage — Attune', () => {
     expect(screen.getByRole('button', { name: /^attune$/i })).toBeInTheDocument()
   })
 
-  it('confirming attune calls attuneDomain and updates state', async () => {
+  it('confirming attune calls attuneDomain and navigates to the caller\'s own domain', async () => {
     vi.mocked(domainsApi.getDomain).mockResolvedValue(otherDomain)
     vi.mocked(domainsApi.listDomains).mockResolvedValue([
       { ...ownedDomain, id: 'my-d', name: 'My Domain', ownerId: 'me' },
@@ -372,6 +372,7 @@ describe('DomainDetailPage — Attune', () => {
 
     await waitFor(() => {
       expect(domainsApi.attuneDomain).toHaveBeenCalledWith('d1', 'my-d')
+      expect(mockNavigate).toHaveBeenCalledWith('/library/my-d')
     })
   })
 })
