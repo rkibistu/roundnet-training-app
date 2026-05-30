@@ -1,0 +1,108 @@
+# Interactive Workflow
+
+The interactive workflow (`main-interactive.mts`) is a human-in-the-loop implementation loop. The agent implements an issue, then pauses and asks you what to do next — ship it, tweak it, or iterate.
+
+## Commands
+
+```bash
+# Implement a fresh issue
+npx tsx .sandcastle/main-interactive.mts <issue-number>
+
+# Resume work on an existing branch (skip implementation)
+npx tsx .sandcastle/main-interactive.mts <issue-number> --branch <branch-name>
+```
+
+The branch name is printed at the start of every run: `sandcastle/implementer/<timestamp>`.
+
+---
+
+## How it works
+
+### Phase 1 — Implementation
+
+Skipped when `--branch` is passed. Otherwise, the agent:
+
+1. Creates a branch: `sandcastle/implementer/<timestamp>`
+2. Boots a Docker sandbox and installs dependencies
+3. Implements the issue using the `/tdd_afk` skill (max 5 iterations)
+4. Commits the work — does **not** open a PR
+
+If the agent reports BLOCKED or ERROR, the script exits and leaves a comment on the issue.
+
+### Phase 2 — Review loop
+
+After implementation (or immediately when resuming a branch), you get this menu on repeat:
+
+```
+1. PR and close issue — everything looks good
+2. Need adjustments — read from a GitHub issue
+3. Need adjustments — provide input directly
+```
+
+**Option 1 — Ship:** creates a PR titled `RALPH: <issue title>` targeting `main`, closes the issue, exits.
+
+**Option 2 — Adjust from issue:** you provide a GitHub issue number. The agent fetches its content and applies the fixes to the branch. Closes the adjustment issue when done.
+
+**Option 3 — Adjust from input:** you type the instructions directly (double Enter to finish). The agent applies them to the branch.
+
+For options 2 and 3, you also choose how the agent continues:
+
+| Choice | When available | What it does |
+|---|---|---|
+| Resume session | Only within the same process run | Agent keeps full in-memory context from the previous run |
+| Fresh session | Always | Agent starts clean, re-reads the issue and codebase |
+
+The loop repeats after every adjustment until you choose to ship.
+
+---
+
+## Use cases
+
+### Standard: implement and ship
+
+```bash
+npx tsx .sandcastle/main-interactive.mts 42
+# agent implements...
+# choice: 1 — ship
+# → PR created, issue closed
+```
+
+### Implement, review, iterate
+
+```bash
+npx tsx .sandcastle/main-interactive.mts 42
+# agent implements...
+# choice: 3 — provide input directly
+# > The button colour should be red, not blue.
+# >
+# agent fixes, commits...
+# choice: 1 — ship
+```
+
+### Resume after Ctrl+C or process restart
+
+If you interrupted a previous run or the process exited, find the branch name in the terminal output and pass it with `--branch`:
+
+```bash
+# Original run created: sandcastle/implementer/1748612345678
+# You wrote a fixing issue: #55
+
+npx tsx .sandcastle/main-interactive.mts 42 --branch sandcastle/implementer/1748612345678
+# choice: 2 — adjustments from GitHub issue
+# issue number: 55
+# session: fresh (process was restarted)
+# agent applies fixes to same branch...
+# choice: 1 — ship
+```
+
+### Apply fixes from a dedicated GitHub issue
+
+Useful when the reviewer leaves structured feedback in a separate issue rather than inline comments:
+
+```bash
+npx tsx .sandcastle/main-interactive.mts 42 --branch sandcastle/implementer/1748612345678
+# choice: 2 — adjustments from GitHub issue
+# issue number: 99
+# agent fetches issue #99, applies fixes, closes #99
+# choice: 1 — ship
+```

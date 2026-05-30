@@ -3,21 +3,18 @@
 // Fresh start (implement from scratch):
 //   npx tsx .sandcastle/main-interactive.mts <issue-number>
 //
-// Resume existing branch (skip implementation):
+// Resume existing branch (skip implementation, go straight to review menu):
 //   npx tsx .sandcastle/main-interactive.mts <issue-number> --branch <branch-name>
 //
-// After each implementation or adjustment the script offers:
-//   1. PR and close issue
-//   2. Adjustments from a GitHub issue
-//   3. Adjustments from direct input
+// After each run you can:
+//   1. PR and close issue — everything OK
+//   2. Need adjustments — read from a GitHub issue
+//   3. Need adjustments — provide input directly
 //
-// For options 2/3 it asks how the agent should continue:
-//   - Resume current session (in-memory, only available in the same execution)
-//   - Resume a previous session by ID (cross-execution, loads from disk)
-//   - Start a fresh session
+// For options 2/3 you also choose whether the next agent run continues
+// the same Claude Code session (keeping its memory) or starts fresh.
 
 import * as sandcastle from "@ai-hero/sandcastle";
-import type { RunResult } from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
@@ -60,42 +57,6 @@ async function askChoice(prompt: string, choices: string[]): Promise<number> {
   }
 }
 
-function buildAdjustInlinePrompt(issueNumber: string, adjIssueNumber: string, adjText: undefined): string;
-function buildAdjustInlinePrompt(issueNumber: string, adjIssueNumber: undefined, adjText: string): string;
-function buildAdjustInlinePrompt(issueNumber: string, adjIssueNumber: string | undefined, adjText: string | undefined): string {
-  const adjustmentBlock = adjIssueNumber !== undefined
-    ? (() => {
-        const content = execSync(
-          `gh issue view ${adjIssueNumber} --json number,title,body,comments --jq '{number, title, body, comments: [.comments[].body]}'`,
-          { encoding: "utf8" }
-        ).trim();
-        return [`Required adjustments (from issue #${adjIssueNumber}):`, "", content].join("\n");
-      })()
-    : [`Required adjustments:`, "", adjText!].join("\n");
-
-  const closeStep = adjIssueNumber !== undefined
-    ? `- Close issue #${adjIssueNumber} with: gh issue close ${adjIssueNumber} --comment "Adjustments applied to branch."`
-    : "";
-
-  return [
-    `Issue review: adjustments needed.`,
-    ``,
-    adjustmentBlock,
-    ``,
-    `Apply these adjustments to the existing implementation:`,
-    `- Use the /tdd_afk skill for any code changes.`,
-    `- Run \`npm run typecheck\` from the backend directory. Fix any failures.`,
-    `- Commit with a \`RALPH:\` prefix, summarising the changes made.`,
-    closeStep,
-    `- Do NOT close issue #${issueNumber}. Do NOT open or modify any PR.`,
-    ``,
-    `When done output exactly one of:`,
-    `<promise>COMPLETE</promise>`,
-    `<promise>BLOCKED</promise>`,
-    `<promise>ERROR</promise>`,
-  ].filter(l => l !== undefined).join("\n");
-}
-
 // ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
@@ -112,28 +73,22 @@ const hooks = {
   },
 };
 
-const COMPLETION_SIGNALS = ["<promise>COMPLETE</promise>", "<promise>BLOCKED</promise>", "<promise>ERROR</promise>"];
-
 const sharedRunOptions = {
   agent: sandcastle.claudeCode("claude-sonnet-4-6", { effort: "medium" }),
   sandbox: docker(),
   hooks,
-  copyToWorktree: ["node_modules", "backend/node_modules", "frontend/node_modules"] as string[],
-  completionSignal: COMPLETION_SIGNALS,
-};
-
-// ---------------------------------------------------------------------------
-// Branch setup
-// ---------------------------------------------------------------------------
+  copyToWorktree: ["node_modules", "backend/node_modules", "frontend/node_modules"],
+  completionSignal: ["<promise>COMPLETE</promise>", "<promise>BLOCKED</promise>", "<promise>ERROR</promise>"] as string[],
+} as const;
 
 const branch = EXISTING_BRANCH ?? `sandcastle/implementer/${Date.now()}`;
 const branchStrategy = { type: "branch" as const, branch };
 
 // ---------------------------------------------------------------------------
-// Phase 1: implement (or skip if resuming existing branch)
+// Phase 1: implement (skipped if --branch is provided)
 // ---------------------------------------------------------------------------
 
-let lastRun: RunResult | undefined;
+let lastRun: Awaited<ReturnType<typeof sandcastle.run>> | undefined;
 
 if (EXISTING_BRANCH) {
   console.log(`\nResuming work on branch: ${branch}`);
@@ -188,12 +143,14 @@ while (true) {
     ).trim();
 
     console.log(`PR created: ${prUrl}`);
+
     execSync(`gh issue close ${ISSUE_NUMBER} --comment "Completed. PR: ${prUrl}"`, { stdio: "inherit" });
+
     console.log(`Issue #${ISSUE_NUMBER} closed.\n\nAll done!`);
     break;
   }
 
-  // --- Options 2/3: collect adjustment input ---
+  // --- Options 2/3: adjustments ---
   let adjIssueNumber: string | undefined;
   let adjText: string | undefined;
 
@@ -210,53 +167,71 @@ while (true) {
     adjText = lines.join("\n").trim();
   }
 
-  // --- Session mode ---
-  const canResumeInMemory = lastRun?.resume !== undefined;
-  const sessionChoices: string[] = [];
-  if (canResumeInMemory) sessionChoices.push("Resume current session (in-memory context from this run)");
-  sessionChoices.push("Resume a previous session by ID (cross-session, loads from disk)");
-  sessionChoices.push("Start a fresh session");
+  const continueSession = await askChoice("Continue on the same session?", [
+    "Yes — resume with existing context",
+    "No — start a fresh session",
+  ]);
 
-  const sessionChoice = await askChoice("How should the agent continue?", sessionChoices);
-
-  type SessionMode = "resume-memory" | "resume-id" | "fresh";
-  const modeMap = canResumeInMemory
-    ? (["resume-memory", "resume-id", "fresh"] as SessionMode[])
-    : (["resume-id", "fresh"] as SessionMode[]);
-  const sessionMode: SessionMode = modeMap[sessionChoice - 1]!;
+  const useResume = continueSession === 1 && lastRun?.resume !== undefined;
+  if (continueSession === 1 && !useResume) {
+    console.log("\n[Note] Session resume is not available for this run — starting a fresh session instead.");
+  }
 
   // --- Run adjustments ---
-  if (sessionMode === "resume-memory") {
-    const inlinePrompt = adjIssueNumber !== undefined
-      ? buildAdjustInlinePrompt(ISSUE_NUMBER, adjIssueNumber, undefined)
-      : buildAdjustInlinePrompt(ISSUE_NUMBER, undefined, adjText!);
+  if (useResume) {
+    // Build inline prompt for the resumed session
+    let inlinePrompt: string;
+
+    if (adjIssueNumber !== undefined) {
+      const issueContent = execSync(
+        `gh issue view ${adjIssueNumber} --json number,title,body,comments --jq '{number, title, body, comments: [.comments[].body]}'`,
+        { encoding: "utf8" }
+      ).trim();
+
+      inlinePrompt = [
+        `Issue review: adjustments needed.`,
+        ``,
+        `The following adjustments are required (from issue #${adjIssueNumber}):`,
+        ``,
+        issueContent,
+        ``,
+        `Apply these adjustments to the existing implementation:`,
+        `- Use the /tdd_afk skill for any code changes.`,
+        `- Run \`npm run typecheck\` from the backend directory. Fix any failures.`,
+        `- Commit with a \`RALPH:\` prefix, summarising the changes made.`,
+        `- Close issue #${adjIssueNumber} with: gh issue close ${adjIssueNumber} --comment "Adjustments applied to branch."`,
+        `- Do NOT close issue #${ISSUE_NUMBER}. Do NOT open or modify any PR.`,
+        ``,
+        `When done output exactly one of:`,
+        `<promise>COMPLETE</promise>`,
+        `<promise>BLOCKED</promise>`,
+        `<promise>ERROR</promise>`,
+      ].join("\n");
+    } else {
+      inlinePrompt = [
+        `Issue review: adjustments needed.`,
+        ``,
+        `Apply the following adjustments to the existing implementation:`,
+        ``,
+        adjText!,
+        ``,
+        `- Use the /tdd_afk skill for any code changes.`,
+        `- Run \`npm run typecheck\` from the backend directory. Fix any failures.`,
+        `- Commit with a \`RALPH:\` prefix, summarising the changes made.`,
+        `- Do NOT close issue #${ISSUE_NUMBER}. Do NOT open or modify any PR.`,
+        ``,
+        `When done output exactly one of:`,
+        `<promise>COMPLETE</promise>`,
+        `<promise>BLOCKED</promise>`,
+        `<promise>ERROR</promise>`,
+      ].join("\n");
+    }
 
     lastRun = await lastRun!.resume!(inlinePrompt, {
       name: "adjuster",
       branchStrategy,
-      completionSignal: COMPLETION_SIGNALS,
+      completionSignal: sharedRunOptions.completionSignal,
     });
-
-  } else if (sessionMode === "resume-id") {
-    console.log("\nTo list recent session IDs, run in another terminal:");
-    console.log("  ls -t ~/.claude/projects/**/*.jsonl 2>/dev/null | head -20");
-    console.log("Each file is named <session-id>.jsonl\n");
-    const sessionId = await ask("Enter session ID (without .jsonl): ");
-
-    const inlinePrompt = adjIssueNumber !== undefined
-      ? buildAdjustInlinePrompt(ISSUE_NUMBER, adjIssueNumber, undefined)
-      : buildAdjustInlinePrompt(ISSUE_NUMBER, undefined, adjText!);
-
-    // resumeSession is incompatible with maxIterations > 1
-    lastRun = await sandcastle.run({
-      ...sharedRunOptions,
-      name: "adjuster",
-      maxIterations: 1,
-      branchStrategy,
-      prompt: inlinePrompt,
-      resumeSession: sessionId,
-    });
-
   } else {
     // Fresh session
     if (adjIssueNumber !== undefined) {
@@ -280,11 +255,11 @@ while (true) {
     }
   }
 
-  if (lastRun.completionSignal !== "<promise>COMPLETE</promise>") {
-    const label = lastRun.completionSignal === "<promise>BLOCKED</promise>" ? "BLOCKED" : "ERROR";
+  if (lastRun!.completionSignal !== "<promise>COMPLETE</promise>") {
+    const label = lastRun!.completionSignal === "<promise>BLOCKED</promise>" ? "BLOCKED" : "ERROR";
     console.log(`\nAdjustment run ${label}. Check the issue for details.`);
   } else {
-    console.log(`\nAdjustments applied. Branch: ${branch} (${lastRun.commits.length} commit(s) total)`);
+    console.log(`\nAdjustments applied. Branch: ${branch} (${lastRun!.commits.length} commit(s) total)`);
   }
 }
 
