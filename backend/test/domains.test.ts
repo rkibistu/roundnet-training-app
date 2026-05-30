@@ -408,6 +408,8 @@ describe('POST /domains/:id/attune', () => {
     expect(res.body).toMatchObject({ domainId: mine.id, rootDomainId: root.id })
     const row = await prisma.attunement.findFirst({ where: { domainId: mine.id } })
     expect(row?.rootDomainId).toBe(root.id)
+    const updatedDomain = await prisma.habitDomain.findUnique({ where: { id: mine.id } })
+    expect(updatedDomain?.rootDomainId).toBe(root.id)
   })
 
   it('resolves chain: attuning to an intermediary stores rootDomainId pointing to the actual root', async () => {

@@ -204,9 +204,10 @@ router.post('/:id/attune', async (req: Request, res: Response) => {
     return
   }
 
-  const attunement = await prisma.attunement.create({
-    data: { domainId: domain.id, rootDomainId },
-  })
+  const [, attunement] = await prisma.$transaction([
+    prisma.habitDomain.update({ where: { id: domain.id }, data: { rootDomainId } }),
+    prisma.attunement.create({ data: { domainId: domain.id, rootDomainId } }),
+  ])
   res.status(201).json(attunement)
 })
 
