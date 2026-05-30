@@ -331,6 +331,43 @@ describe('DomainDetailPage — Attune', () => {
     expect(await screen.findByRole('button', { name: /attune/i })).toBeInTheDocument()
   })
 
+  it('shows only "Attune (create copy)" with no domain selector when caller owns no Domains', async () => {
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(otherDomain)
+    vi.mocked(domainsApi.listDomains).mockResolvedValue([])
+
+    renderPage()
+
+    expect(await screen.findByRole('button', { name: /attune \(create copy\)/i })).toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /your domain to attune/i })).not.toBeInTheDocument()
+  })
+
+  it('auto-copy attune calls attuneDomain without callerDomainId and navigates to new domain', async () => {
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(otherDomain)
+    vi.mocked(domainsApi.listDomains).mockResolvedValue([])
+    vi.mocked(domainsApi.attuneDomain).mockResolvedValue({ id: 'new-domain-id' })
+
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: /attune \(create copy\)/i }))
+
+    await waitFor(() => {
+      expect(domainsApi.attuneDomain).toHaveBeenCalledWith('d1', undefined)
+      expect(mockNavigate).toHaveBeenCalledWith('/library/new-domain-id')
+    })
+  })
+
+  it('shows "Attune" button and "Attune (create copy)" option when caller owns Domains', async () => {
+    vi.mocked(domainsApi.getDomain).mockResolvedValue(otherDomain)
+    vi.mocked(domainsApi.listDomains).mockResolvedValue([
+      { ...ownedDomain, id: 'my-d', name: 'My Domain', ownerId: 'me' },
+    ])
+
+    renderPage()
+
+    expect(await screen.findByRole('button', { name: /^attune$/i })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /attune \(create copy\)/i })).toBeInTheDocument()
+  })
+
   it('does not show the Attune button when the caller is the owner', async () => {
     vi.mocked(domainsApi.getDomain).mockResolvedValue(ownedDomain)
 

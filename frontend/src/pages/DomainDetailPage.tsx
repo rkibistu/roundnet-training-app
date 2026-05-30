@@ -83,9 +83,9 @@ export default function DomainDetailPage() {
   }, [attunement])
 
   useEffect(() => {
-    if (!attuning) return
+    if (!domain || domain.ownerId === player?.id) return
     listDomains().then(ds => setAllDomains(ds))
-  }, [attuning])
+  }, [domain?.id, player?.id])
 
   if (!domain) return null
 
@@ -173,8 +173,19 @@ export default function DomainDetailPage() {
     setAttuneError(null)
     try {
       const result = await attuneDomain(domain.id, selectedTargetId)
-      setAttunement({ rootDomainId: result.rootDomainId })
+      setAttunement({ rootDomainId: result.rootDomainId! })
       setAttuning(false)
+    } catch (err) {
+      setAttuneError(err instanceof Error ? err.message : 'Failed to attune')
+    }
+  }
+
+  async function handleAutoCopyAttune() {
+    if (!domain) return
+    setAttuneError(null)
+    try {
+      const result = await attuneDomain(domain.id, undefined)
+      navigate(`/library/${result.id}`)
     } catch (err) {
       setAttuneError(err instanceof Error ? err.message : 'Failed to attune')
     }
@@ -222,6 +233,7 @@ export default function DomainDetailPage() {
   const activeSkills = skills.filter(s => !s.archivedAt)
   const archivedSkills = skills.filter(s => !!s.archivedAt)
   const pairedSkillIds = new Set(pairs.map(p => p.playerDomainSkillId))
+  const myDomains = allDomains.filter(d => d.ownerId === player?.id)
 
   return (
     <main className="p-4 flex flex-col gap-5 max-w-2xl mx-auto">
@@ -242,17 +254,32 @@ export default function DomainDetailPage() {
           </div>
         </form>
       ) : (
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-brand-darkest dark:text-brand-lightest">{domain.name}</h1>
-          {isOwner && (
-            <button
-              type="button"
-              className="text-sm text-brand-accent"
-              onClick={() => { setDraftDomainName(domain.name); setEditingDomainName(true) }}
-            >
-              Edit name
-            </button>
-          )}
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-2xl font-bold text-brand-darkest dark:text-brand-lightest">{domain.name}</h1>
+            {allDomains.some(d => d.rootDomainId === domain.id) && (
+              <span className="text-xs font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-brand-accent text-white">
+                Root Domain
+              </span>
+            )}
+            {isAttuned && rootDomain && (
+              <span className="text-xs text-brand-dark dark:text-brand-light">
+                Attuned to: {rootDomain.name}
+              </span>
+            )}
+            {!isAttuned && domain.rootDomainId === null && (
+              <span className="text-xs text-brand-dark dark:text-brand-light">Individual</span>
+            )}
+            {isOwner && (
+              <button
+                type="button"
+                className="text-sm text-brand-accent"
+                onClick={() => { setDraftDomainName(domain.name); setEditingDomainName(true) }}
+              >
+                Edit name
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -299,7 +326,7 @@ export default function DomainDetailPage() {
               </div>
             </form>
           ) : (
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <button
                 type="button"
                 className="self-start rounded border px-3 py-1 text-sm"
@@ -307,12 +334,21 @@ export default function DomainDetailPage() {
               >
                 Fracture
               </button>
+              {myDomains.length > 0 && (
+                <button
+                  type="button"
+                  className="self-start rounded border px-3 py-1 text-sm"
+                  onClick={() => setAttuning(true)}
+                >
+                  Attune
+                </button>
+              )}
               <button
                 type="button"
-                className="self-start rounded border px-3 py-1 text-sm"
-                onClick={() => setAttuning(true)}
+                className="self-start rounded bg-brand-accent text-white px-3 py-1 text-sm"
+                onClick={handleAutoCopyAttune}
               >
-                Attune
+                Attune (create copy)
               </button>
             </div>
           )}

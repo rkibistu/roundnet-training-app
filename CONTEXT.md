@@ -30,6 +30,11 @@ _Avoid_: parent domain, original domain, base domain
 
 **Attune** (action):
 The act of linking your Domain to a Root Domain, joining its leaderboard group. An attuned Player gets their own Domain (editable) whose Skills may be paired with the Root's Skills for comparison. The attunement link is stored as a direct reference to the Root Domain, never to an intermediary. A Domain can be attuned to at most one Root Domain at a time. Re-attuning to a different Root Domain is allowed; all existing Skill Pairs are cleared when switching. The Root Domain owner may remove an attuned Player from a protected or private Domain at any time; the removed Player's Domain becomes standalone (Session history and Skills preserved, attunement link dropped). Removal is not possible on public Domains.
+
+Two attune paths exist:
+- **Existing-domain path**: the Player selects one of their own Domains as the link. The attunement record is created and Skill Pairs are managed manually.
+- **Auto-copy path**: the Player omits a Domain selection ("Attune (create copy)"). The system automatically creates a new Domain owned by the Player using the Root Domain's name (duplicate names allowed), copies all active Skills from the Root Domain into the new Domain, creates the Attunement record, and declares all Skill Pairs automatically by exact name match. The Player lands on the new Domain in their library, fully attuned and paired. Players who own no Domains can only use the auto-copy path.
+
 _Avoid_: join, subscribe, follow, sync
 
 **Fracture** (action):

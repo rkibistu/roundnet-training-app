@@ -484,6 +484,70 @@ describe('POST /domains/:id/attune', () => {
 
     expect(res.status).toBe(404)
   })
+
+  it('auto-copy: creates a new Domain for the caller with root name, attunement, and returns { id }', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const root = await prisma.habitDomain.create({ data: { name: 'Roundnet', ownerId: bob.playerId, accessibilityState: 'public' } })
+
+    const res = await request(app)
+      .post(`/domains/${root.id}/attune`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({})
+
+    expect(res.status).toBe(201)
+    expect(res.body.id).toBeDefined()
+    expect(res.body.domainId).toBeUndefined()
+
+    const newDomain = await prisma.habitDomain.findUnique({ where: { id: res.body.id } })
+    expect(newDomain).not.toBeNull()
+    expect(newDomain?.name).toBe('Roundnet')
+    expect(newDomain?.ownerId).toBe(alice.playerId)
+
+    const attunement = await prisma.attunement.findFirst({ where: { domainId: res.body.id } })
+    expect(attunement?.rootDomainId).toBe(root.id)
+  })
+
+  it('auto-copy: copies only active Skills from the root Domain — archived Skills are excluded', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const root = await prisma.habitDomain.create({ data: { name: 'Roundnet', ownerId: bob.playerId, accessibilityState: 'public' } })
+    await prisma.skill.create({ data: { name: 'Spike', domainId: root.id } })
+    await prisma.skill.create({ data: { name: 'Old', domainId: root.id, archivedAt: new Date() } })
+
+    const res = await request(app)
+      .post(`/domains/${root.id}/attune`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({})
+
+    expect(res.status).toBe(201)
+    const skills = await prisma.skill.findMany({ where: { domainId: res.body.id } })
+    expect(skills).toHaveLength(1)
+    expect(skills[0].name).toBe('Spike')
+  })
+
+  it('auto-copy: auto-pairs every copied Skill to its Root counterpart by exact name', async () => {
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const root = await prisma.habitDomain.create({ data: { name: 'Roundnet', ownerId: bob.playerId, accessibilityState: 'public' } })
+    const rootSkillA = await prisma.skill.create({ data: { name: 'Spike', domainId: root.id } })
+    const rootSkillB = await prisma.skill.create({ data: { name: 'Serve', domainId: root.id } })
+
+    const res = await request(app)
+      .post(`/domains/${root.id}/attune`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({})
+
+    expect(res.status).toBe(201)
+    const newDomainId = res.body.id
+    const newSkills = await prisma.skill.findMany({ where: { domainId: newDomainId } })
+    const pairs = await prisma.skillPair.findMany({
+      where: { playerDomainSkillId: { in: newSkills.map(s => s.id) } },
+    })
+    expect(pairs).toHaveLength(2)
+    const pairedRootSkillIds = pairs.map(p => p.rootDomainSkillId).sort()
+    expect(pairedRootSkillIds).toEqual([rootSkillA.id, rootSkillB.id].sort())
+  })
 })
 
 describe('GET /domains/:id/skill-pairs', () => {
