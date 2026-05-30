@@ -400,9 +400,9 @@ describe('POST /domains/:id/attune', () => {
     const mine = await prisma.habitDomain.create({ data: { name: 'Mine', ownerId: alice.playerId, accessibilityState: 'public' } })
 
     const res = await request(app)
-      .post(`/domains/${mine.id}/attune`)
+      .post(`/domains/${root.id}/attune`)
       .set('Authorization', `Bearer ${alice.token}`)
-      .send({ targetDomainId: root.id })
+      .send({ callerDomainId: mine.id })
 
     expect(res.status).toBe(201)
     expect(res.body).toMatchObject({ domainId: mine.id, rootDomainId: root.id })
@@ -420,9 +420,9 @@ describe('POST /domains/:id/attune', () => {
     const mine = await prisma.habitDomain.create({ data: { name: 'Mine', ownerId: charlie.playerId, accessibilityState: 'public' } })
 
     const res = await request(app)
-      .post(`/domains/${mine.id}/attune`)
+      .post(`/domains/${intermediary.id}/attune`)
       .set('Authorization', `Bearer ${charlie.token}`)
-      .send({ targetDomainId: intermediary.id })
+      .send({ callerDomainId: mine.id })
 
     expect(res.status).toBe(201)
     expect(res.body.rootDomainId).toBe(root.id)
@@ -438,9 +438,9 @@ describe('POST /domains/:id/attune', () => {
     await prisma.attunement.create({ data: { domainId: mine.id, rootDomainId: root.id } })
 
     const res = await request(app)
-      .post(`/domains/${mine.id}/attune`)
+      .post(`/domains/${root.id}/attune`)
       .set('Authorization', `Bearer ${alice.token}`)
-      .send({ targetDomainId: root.id })
+      .send({ callerDomainId: mine.id })
 
     expect(res.status).toBe(400)
   })
@@ -452,9 +452,9 @@ describe('POST /domains/:id/attune', () => {
     const mine = await prisma.habitDomain.create({ data: { name: 'Mine', ownerId: alice.playerId, accessibilityState: 'public' } })
 
     const res = await request(app)
-      .post(`/domains/${mine.id}/attune`)
+      .post(`/domains/${privateRoot.id}/attune`)
       .set('Authorization', `Bearer ${alice.token}`)
-      .send({ targetDomainId: privateRoot.id })
+      .send({ callerDomainId: mine.id })
 
     expect(res.status).toBe(403)
   })
@@ -466,9 +466,9 @@ describe('POST /domains/:id/attune', () => {
     const bobs = await prisma.habitDomain.create({ data: { name: 'Bobs', ownerId: bob.playerId, accessibilityState: 'public' } })
 
     const res = await request(app)
-      .post(`/domains/${bobs.id}/attune`)
+      .post(`/domains/${root.id}/attune`)
       .set('Authorization', `Bearer ${alice.token}`)
-      .send({ targetDomainId: root.id })
+      .send({ callerDomainId: bobs.id })
 
     expect(res.status).toBe(403)
   })
@@ -478,9 +478,9 @@ describe('POST /domains/:id/attune', () => {
     const mine = await prisma.habitDomain.create({ data: { name: 'Mine', ownerId: alice.playerId, accessibilityState: 'public' } })
 
     const res = await request(app)
-      .post(`/domains/${mine.id}/attune`)
+      .post('/domains/does-not-exist/attune')
       .set('Authorization', `Bearer ${alice.token}`)
-      .send({ targetDomainId: 'does-not-exist' })
+      .send({ callerDomainId: mine.id })
 
     expect(res.status).toBe(404)
   })

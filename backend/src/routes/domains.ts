@@ -134,24 +134,26 @@ router.post('/:id/fracture', async (req: Request, res: Response) => {
 })
 
 router.post('/:id/attune', async (req: Request, res: Response) => {
+  // :id = the Root Domain being attuned to (the one the caller is viewing)
+  // callerDomainId = the caller's own Domain being linked
   const callerId = req.player!.playerId
-  const domain = await prisma.habitDomain.findUnique({ where: { id: req.params.id } })
-  if (!domain) {
+  const target = await prisma.habitDomain.findUnique({ where: { id: req.params.id } })
+  if (!target) {
     res.status(404).json({ error: 'Domain not found' })
     return
   }
-  if (domain.ownerId !== callerId) {
+  if (!canSee(callerId, target)) {
     res.status(403).json({ error: 'forbidden' })
     return
   }
 
-  const { targetDomainId } = req.body
-  const target = await prisma.habitDomain.findUnique({ where: { id: targetDomainId } })
-  if (!target) {
-    res.status(404).json({ error: 'Target Domain not found' })
+  const { callerDomainId } = req.body
+  const domain = await prisma.habitDomain.findUnique({ where: { id: callerDomainId } })
+  if (!domain) {
+    res.status(404).json({ error: 'Caller Domain not found' })
     return
   }
-  if (!canSee(callerId, target)) {
+  if (domain.ownerId !== callerId) {
     res.status(403).json({ error: 'forbidden' })
     return
   }
