@@ -39,7 +39,8 @@ console.log("\nStarting implementation...\n");
 // Implement
 // ---------------------------------------------------------------------------
 
-const branch = `sandcastle/implementer/${Date.now()}`;
+// const branch = `sandcastle/implementer/${Date.now()}`;
+const branch = `sandcastle/implementer/1779917979189`;
 const branchStrategy = { type: "branch" as const, branch };
 
 console.log(`\n=== Implement — issue #${ISSUE_NUMBER} ===\n`);
