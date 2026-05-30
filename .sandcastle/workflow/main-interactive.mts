@@ -17,7 +17,7 @@
 import * as sandcastle from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
 import { createInterface } from "node:readline/promises";
-import { stdin, stdout } from "node:process";
+import { stdin, stdout, cwd } from "node:process";
 import { execSync } from "node:child_process";
 
 // ---------------------------------------------------------------------------
@@ -77,7 +77,7 @@ const sharedRunOptions = {
   agent: sandcastle.claudeCode("claude-sonnet-4-6", { effort: "medium" }),
   sandbox: docker(),
   hooks,
-  copyToWorktree: ["node_modules", "backend/node_modules", "frontend/node_modules"],
+  copyToWorktree: ["node_modules", "backend/node_modules", "frontend/node_modules", ".env"],
   completionSignal: ["<promise>COMPLETE</promise>", "<promise>BLOCKED</promise>", "<promise>ERROR</promise>"] as string[],
 } as const;
 
@@ -119,6 +119,10 @@ if (EXISTING_BRANCH) {
 // ---------------------------------------------------------------------------
 // Phase 2: interactive review loop
 // ---------------------------------------------------------------------------
+
+const worktreePath = `${cwd()}/.sandcastle/worktrees/${branch.replace(/\//g, '-')}`;
+console.log(`\nWorktree path (to inspect or run the app):`);
+console.log(`  cd ${worktreePath}\n`);
 
 while (true) {
   const action = await askChoice("What would you like to do?", [
