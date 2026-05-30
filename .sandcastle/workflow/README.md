@@ -6,10 +6,10 @@ The interactive workflow (`main-interactive.mts`) is a human-in-the-loop impleme
 
 ```bash
 # Implement a fresh issue
-npx tsx .sandcastle/main-interactive.mts <issue-number>
+npx tsx .sandcastle/workflow/main-interactive.mts <issue-number>
 
 # Resume work on an existing branch (skip implementation)
-npx tsx .sandcastle/main-interactive.mts <issue-number> --branch <branch-name>
+npx tsx .sandcastle/workflow/main-interactive.mts <issue-number> --branch <branch-name>
 ```
 
 The branch name is printed at the start of every run: `sandcastle/implementer/<timestamp>`.
@@ -61,7 +61,7 @@ The loop repeats after every adjustment until you choose to ship.
 ### Standard: implement and ship
 
 ```bash
-npx tsx .sandcastle/main-interactive.mts 42
+npx tsx .sandcastle/workflow/main-interactive.mts 42
 # agent implements...
 # choice: 1 — ship
 # → PR created, issue closed
@@ -70,7 +70,7 @@ npx tsx .sandcastle/main-interactive.mts 42
 ### Implement, review, iterate
 
 ```bash
-npx tsx .sandcastle/main-interactive.mts 42
+npx tsx .sandcastle/workflow/main-interactive.mts 42
 # agent implements...
 # choice: 3 — provide input directly
 # > The button colour should be red, not blue.
@@ -87,7 +87,7 @@ If you interrupted a previous run or the process exited, find the branch name in
 # Original run created: sandcastle/implementer/1748612345678
 # You wrote a fixing issue: #55
 
-npx tsx .sandcastle/main-interactive.mts 42 --branch sandcastle/implementer/1748612345678
+npx tsx .sandcastle/workflow/main-interactive.mts 42 --branch sandcastle/implementer/1748612345678
 # choice: 2 — adjustments from GitHub issue
 # issue number: 55
 # session: fresh (process was restarted)
@@ -100,7 +100,7 @@ npx tsx .sandcastle/main-interactive.mts 42 --branch sandcastle/implementer/1748
 Useful when the reviewer leaves structured feedback in a separate issue rather than inline comments:
 
 ```bash
-npx tsx .sandcastle/main-interactive.mts 42 --branch sandcastle/implementer/1748612345678
+npx tsx .sandcastle/workflow/main-interactive.mts 42 --branch sandcastle/implementer/1748612345678
 # choice: 2 — adjustments from GitHub issue
 # issue number: 99
 # agent fetches issue #99, applies fixes, closes #99
