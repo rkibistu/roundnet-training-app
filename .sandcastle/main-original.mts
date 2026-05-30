@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 // Single-phase workflow: implement
 //
 // The implementer picks up the issue, implements it using /tdd_afk,
@@ -40,7 +39,8 @@ console.log("\nStarting implementation...\n");
 // Implement
 // ---------------------------------------------------------------------------
 
-const branch = `sandcastle/implementer/${Date.now()}`;
+// const branch = `sandcastle/implementer/${Date.now()}`;
+const branch = `sandcastle/implementer/1779917979189`;
 const branchStrategy = { type: "branch" as const, branch };
 
 console.log(`\n=== Implement — issue #${ISSUE_NUMBER} ===\n`);
@@ -70,6 +70,3 @@ if (implement.completionSignal === "<promise>COMPLETE</promise>") {
 }
 
 console.log("\nAll done.");
-=======
-import "./main-interactive.mts";
->>>>>>> Stashed changes
