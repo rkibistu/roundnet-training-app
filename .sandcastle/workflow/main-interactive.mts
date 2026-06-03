@@ -10,14 +10,17 @@
 //   1. PR and close issue — everything OK
 //   2. Need adjustments — read from a GitHub issue
 //   3. Need adjustments — provide input directly
+//   4. Discard worktree and exit
 //
 // For options 2/3 you also choose whether the next agent run continues
 // the same Claude Code session (keeping its memory) or starts fresh.
 
 import * as sandcastle from "@ai-hero/sandcastle";
+import { createWorktree } from "@ai-hero/sandcastle";
+import type { WorktreeRunResult } from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
 import { createInterface } from "node:readline/promises";
-import { stdin, stdout, cwd } from "node:process";
+import { stdin, stdout } from "node:process";
 import { execSync } from "node:child_process";
 
 // ---------------------------------------------------------------------------
@@ -93,7 +96,7 @@ async function ensureBranchNotCheckedOut(branch: string): Promise<boolean> {
 
   const nowCurrent = execSync("git branch --show-current", { encoding: "utf8" }).trim();
   if (nowCurrent === branch) {
-    console.log(`\nBranch '${branch}' is still checked out here. Returning to menu.`);
+    console.log(`\nBranch '${branch}' is still checked out here. Aborting.`);
     return false;
   }
   return true;
@@ -119,18 +122,39 @@ const sharedRunOptions = {
   agent: sandcastle.claudeCode("claude-sonnet-4-6", { effort: "medium" }),
   sandbox: docker(),
   hooks,
-  copyToWorktree: ["node_modules", "backend/node_modules", "frontend/node_modules", ".env"],
   completionSignal: ["<promise>COMPLETE</promise>", "<promise>BLOCKED</promise>", "<promise>ERROR</promise>"] as string[],
-} as const;
+};
 
 const branch = EXISTING_BRANCH ?? `sandcastle/implementer/${Date.now()}`;
 const branchStrategy = { type: "branch" as const, branch };
 
 // ---------------------------------------------------------------------------
+// Startup: ensure branch is free, create worktree
+// ---------------------------------------------------------------------------
+
+const canStart = await ensureBranchNotCheckedOut(branch);
+if (!canStart) {
+  rl.close();
+  process.exit(1);
+}
+
+const wt = await createWorktree({
+  branchStrategy,
+  copyToWorktree: ["node_modules", "backend/node_modules", "frontend/node_modules", ".env"],
+});
+
+console.log(`Worktree: ${wt.worktreePath}`);
+
+process.on("SIGINT", () => {
+  console.log(`\nWorktree preserved at: ${wt.worktreePath}`);
+  process.exit(0);
+});
+
+// ---------------------------------------------------------------------------
 // Phase 1: implement (skipped if --branch is provided)
 // ---------------------------------------------------------------------------
 
-let lastRun: Awaited<ReturnType<typeof sandcastle.run>> | undefined;
+let lastRun: WorktreeRunResult | undefined;
 
 if (EXISTING_BRANCH) {
   console.log(`\nResuming work on branch: ${branch}`);
@@ -139,11 +163,10 @@ if (EXISTING_BRANCH) {
   console.log(`\nStarting implementation of issue #${ISSUE_NUMBER}...`);
   console.log(`Branch: ${branch}\n`);
 
-  lastRun = await sandcastle.run({
+  lastRun = await wt.run({
     ...sharedRunOptions,
     name: "implementer",
     maxIterations: 5,
-    branchStrategy,
     promptFile: "./.sandcastle/workflow/implement-no-pr-prompt.md",
     promptArgs: { ISSUE_NUMBER },
   });
@@ -162,15 +185,12 @@ if (EXISTING_BRANCH) {
 // Phase 2: interactive review loop
 // ---------------------------------------------------------------------------
 
-const worktreePath = `${cwd()}/.sandcastle/worktrees/${branch.replace(/\//g, '-')}`;
-console.log(`\nWorktree path (to inspect or run the app):`);
-console.log(`  cd ${worktreePath}\n`);
-
 while (true) {
   const action = await askChoice("What would you like to do?", [
     "PR and close issue — everything looks good",
     "Need adjustments — read from a GitHub issue",
     "Need adjustments — provide input directly",
+    "Discard worktree and exit",
   ]);
 
   // --- Option 1: PR + close ---
@@ -207,8 +227,21 @@ while (true) {
     }
 
     execSync(`gh issue close ${ISSUE_NUMBER} --comment "Completed. PR: ${prUrl}"`, { stdio: "inherit" });
+    await wt.close();
 
     console.log(`Issue #${ISSUE_NUMBER} closed.\n\nAll done!`);
+    break;
+  }
+
+  // --- Option 4: Discard worktree and exit ---
+  if (action === 4) {
+    const confirm = await ask("\nDiscard the worktree and exit? All uncommitted work will be lost. (y/n): ");
+    if (confirm.toLowerCase() !== "y") {
+      console.log("Cancelled. Returning to menu.");
+      continue;
+    }
+    await wt.close();
+    console.log("Worktree discarded. Exiting.");
     break;
   }
 
@@ -238,7 +271,8 @@ while (true) {
     "No — start a fresh session",
   ]);
 
-  const useResume = continueSession === 1 && lastRun?.resume !== undefined;
+  const lastSessionId = lastRun?.iterations.at(-1)?.sessionId;
+  const useResume = continueSession === 1 && lastSessionId !== undefined;
   if (continueSession === 1 && !useResume) {
     console.log("\n[Note] Session resume is not available for this run — starting a fresh session instead.");
   }
@@ -293,33 +327,26 @@ while (true) {
       ].join("\n");
     }
 
-    lastRun = await lastRun!.resume!(inlinePrompt, {
+    lastRun = await wt.run({
+      ...sharedRunOptions,
       name: "adjuster",
-      branchStrategy,
-      completionSignal: sharedRunOptions.completionSignal,
-      promptArgs: undefined,
+      prompt: inlinePrompt,
+      resumeSession: lastSessionId,
     });
   } else {
-    // Fresh session — check that the branch isn't currently checked out in the
-    // main worktree, which would prevent the agent from creating its own worktree.
-    const canProceed = await ensureBranchNotCheckedOut(branch);
-    if (!canProceed) continue;
-
     if (adjIssueNumber !== undefined) {
-      lastRun = await sandcastle.run({
+      lastRun = await wt.run({
         ...sharedRunOptions,
         name: "adjuster",
         maxIterations: 5,
-        branchStrategy,
         promptFile: "./.sandcastle/workflow/adjust-from-issue-prompt.md",
         promptArgs: { ISSUE_NUMBER, ADJUSTMENT_ISSUE_NUMBER: adjIssueNumber },
       });
     } else {
-      lastRun = await sandcastle.run({
+      lastRun = await wt.run({
         ...sharedRunOptions,
         name: "adjuster",
         maxIterations: 5,
-        branchStrategy,
         promptFile: "./.sandcastle/workflow/adjust-from-input-prompt.md",
         promptArgs: { ISSUE_NUMBER, ADJUSTMENT_TEXT: adjText! },
       });
