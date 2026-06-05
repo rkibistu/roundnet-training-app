@@ -1,27 +1,35 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { render, screen, act } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider, useAuthContext } from './AuthContext'
+import ProtectedRoute from '../components/ProtectedRoute'
+import ShellLayout from '../components/ShellLayout'
 
 function makeJwt(payload: object): string {
   const encode = (obj: object) => btoa(JSON.stringify(obj)).replace(/=+$/, '')
   return `${encode({ alg: 'HS256' })}.${encode(payload)}.sig`
 }
 
-function AuthStatus() {
-  const { isAuthenticated, player } = useAuthContext()
-  return (
-    <div>
-      <span data-testid="authed">{String(isAuthenticated)}</span>
-      <span data-testid="player">{player ? player.nickname : 'none'}</span>
-    </div>
-  )
+function LoginButton({ token }: { token: string }) {
+  const { login } = useAuthContext()
+  return <button onClick={() => login(token)}>login</button>
 }
 
-function renderWithAuth() {
+function renderApp() {
   render(
-    <AuthProvider>
-      <AuthStatus />
-    </AuthProvider>
+    <MemoryRouter initialEntries={['/']}>
+      <AuthProvider>
+        <Routes>
+          <Route element={<ProtectedRoute />}>
+            <Route element={<ShellLayout />}>
+              <Route path="/" element={<div>home content</div>} />
+            </Route>
+          </Route>
+          <Route path="/login" element={<div>login page</div>} />
+        </Routes>
+      </AuthProvider>
+    </MemoryRouter>
   )
 }
 
@@ -30,54 +38,55 @@ describe('AuthContext', () => {
     localStorage.clear()
   })
 
-  it('isAuthenticated is false when no JWT in localStorage', () => {
-    renderWithAuth()
-    expect(screen.getByTestId('authed').textContent).toBe('false')
-    expect(screen.getByTestId('player').textContent).toBe('none')
+  it('redirects unauthenticated users to the login page', () => {
+    renderApp()
+    expect(screen.getByText('login page')).toBeInTheDocument()
+    expect(screen.queryByText('home content')).not.toBeInTheDocument()
   })
 
-  it('login stores JWT under "jwt" key and decodes player from payload', () => {
+  it('shows nickname in header after login', async () => {
     const token = makeJwt({ sub: '1', email: 'a@b.com', nickname: 'spike', is_admin: false })
-    function LoginButton() {
-      const { login } = useAuthContext()
-      return <button onClick={() => login(token)}>login</button>
-    }
-    render(<AuthProvider><LoginButton /><AuthStatus /></AuthProvider>)
-    act(() => { screen.getByRole('button').click() })
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <LoginButton token={token} />
+          <ShellLayout />
+        </AuthProvider>
+      </MemoryRouter>
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'login' }))
+    expect(screen.getByText('spike')).toBeInTheDocument()
+  })
+
+  it('login persists JWT to localStorage', async () => {
+    const token = makeJwt({ sub: '1', email: 'a@b.com', nickname: 'spike', is_admin: false })
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <LoginButton token={token} />
+          <ShellLayout />
+        </AuthProvider>
+      </MemoryRouter>
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'login' }))
     expect(localStorage.getItem('jwt')).toBe(token)
-    expect(screen.getByTestId('player').textContent).toBe('spike')
   })
 
-  it('isAuthenticated is true after login', () => {
-    const token = makeJwt({ sub: '1', email: 'a@b.com', nickname: 'spike', is_admin: false })
-    function LoginButton() {
-      const { login } = useAuthContext()
-      return <button onClick={() => login(token)}>login</button>
-    }
-    render(<AuthProvider><LoginButton /><AuthStatus /></AuthProvider>)
-    act(() => { screen.getByRole('button').click() })
-    expect(screen.getByTestId('authed').textContent).toBe('true')
-  })
-
-  it('logout clears JWT from localStorage and resets player to null', () => {
+  it('logout clears JWT and redirects to the login page', async () => {
     const token = makeJwt({ sub: '1', email: 'a@b.com', nickname: 'spike', is_admin: false })
     localStorage.setItem('jwt', token)
-    function LogoutButton() {
-      const { logout } = useAuthContext()
-      return <button onClick={logout}>logout</button>
-    }
-    render(<AuthProvider><LogoutButton /><AuthStatus /></AuthProvider>)
-    act(() => { screen.getByRole('button').click() })
+    renderApp()
+    expect(screen.getByText('home content')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /logout/i }))
     expect(localStorage.getItem('jwt')).toBeNull()
-    expect(screen.getByTestId('authed').textContent).toBe('false')
-    expect(screen.getByTestId('player').textContent).toBe('none')
+    expect(screen.getByText('login page')).toBeInTheDocument()
   })
 
-  it('restores player from localStorage on boot when JWT is present', () => {
+  it('restores authentication on page load when JWT is present in localStorage', () => {
     const token = makeJwt({ sub: '42', email: 'z@z.com', nickname: 'yoyo', is_admin: true })
     localStorage.setItem('jwt', token)
-    renderWithAuth()
-    expect(screen.getByTestId('authed').textContent).toBe('true')
-    expect(screen.getByTestId('player').textContent).toBe('yoyo')
+    renderApp()
+    expect(screen.getByText('home content')).toBeInTheDocument()
+    expect(screen.getByText('yoyo')).toBeInTheDocument()
   })
 })
