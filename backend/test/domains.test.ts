@@ -113,6 +113,37 @@ describe('GET /domains', () => {
       expect(d.accessibilityState).toBeDefined()
     }
   })
+
+  it('includes group-visible private Domains (root + siblings) for a group member', async () => {
+    const rootOwner = await registerAndLogin('root@example.com')
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const charlie = await registerAndLogin('charlie@example.com')
+
+    const root = await prisma.habitDomain.create({
+      data: { name: 'Private Root', ownerId: rootOwner.playerId, accessibilityState: 'private' },
+    })
+    const aliceDomain = await prisma.habitDomain.create({
+      data: { name: 'Alice domain', ownerId: alice.playerId, accessibilityState: 'private', rootDomainId: root.id },
+    })
+    const bobDomain = await prisma.habitDomain.create({
+      data: { name: 'Bob domain', ownerId: bob.playerId, accessibilityState: 'private', rootDomainId: root.id },
+    })
+    await prisma.habitDomain.create({
+      data: { name: 'Charlie unrelated', ownerId: charlie.playerId, accessibilityState: 'private' },
+    })
+
+    const res = await request(app).get('/domains').set('Authorization', `Bearer ${alice.token}`)
+
+    expect(res.status).toBe(200)
+    const ids = (res.body as Array<{ id: string }>).map(d => d.id)
+    expect(ids).toContain(root.id)
+    expect(ids).toContain(aliceDomain.id)
+    expect(ids).toContain(bobDomain.id)
+    // unrelated private Domain is excluded
+    const names = (res.body as Array<{ name: string }>).map(d => d.name)
+    expect(names).not.toContain('Charlie unrelated')
+  })
 })
 
 describe('GET /domains/:id', () => {
@@ -144,6 +175,42 @@ describe('GET /domains/:id', () => {
     const { token } = await registerAndLogin('alice@example.com')
     const res = await request(app).get('/domains/does-not-exist').set('Authorization', `Bearer ${token}`)
     expect(res.status).toBe(404)
+  })
+
+  it('group member can GET a private Root Domain they are attuned to', async () => {
+    const rootOwner = await registerAndLogin('root@example.com')
+    const alice = await registerAndLogin('alice@example.com')
+    const root = await prisma.habitDomain.create({
+      data: { name: 'Private Root', ownerId: rootOwner.playerId, accessibilityState: 'private' },
+    })
+    await prisma.habitDomain.create({
+      data: { name: 'Alice domain', ownerId: alice.playerId, accessibilityState: 'private', rootDomainId: root.id },
+    })
+
+    const res = await request(app).get(`/domains/${root.id}`).set('Authorization', `Bearer ${alice.token}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body.id).toBe(root.id)
+  })
+
+  it('group member can GET a private sibling Domain in the same group', async () => {
+    const rootOwner = await registerAndLogin('root@example.com')
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const root = await prisma.habitDomain.create({
+      data: { name: 'Root', ownerId: rootOwner.playerId, accessibilityState: 'private' },
+    })
+    await prisma.habitDomain.create({
+      data: { name: 'Alice domain', ownerId: alice.playerId, accessibilityState: 'private', rootDomainId: root.id },
+    })
+    const bobDomain = await prisma.habitDomain.create({
+      data: { name: 'Bob domain', ownerId: bob.playerId, accessibilityState: 'private', rootDomainId: root.id },
+    })
+
+    const res = await request(app).get(`/domains/${bobDomain.id}`).set('Authorization', `Bearer ${alice.token}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body.id).toBe(bobDomain.id)
   })
 })
 
@@ -365,6 +432,29 @@ describe('POST /domains/:id/fracture', () => {
     expect(res.status).toBe(401)
   })
 
+  it('guardrail: group member who can read a private sibling still gets 403 on fracture', async () => {
+    const rootOwner = await registerAndLogin('root@example.com')
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const root = await prisma.habitDomain.create({
+      data: { name: 'Root', ownerId: rootOwner.playerId, accessibilityState: 'private' },
+    })
+    await prisma.habitDomain.create({
+      data: { name: 'Alice domain', ownerId: alice.playerId, accessibilityState: 'private', rootDomainId: root.id },
+    })
+    const bobDomain = await prisma.habitDomain.create({
+      data: { name: 'Bob domain', ownerId: bob.playerId, accessibilityState: 'private', rootDomainId: root.id },
+    })
+
+    const res = await request(app)
+      .post(`/domains/${bobDomain.id}/fracture`)
+      .set('Authorization', `Bearer ${alice.token}`)
+
+    expect(res.status).toBe(403)
+    const count = await prisma.habitDomain.count({ where: { ownerId: alice.playerId } })
+    expect(count).toBe(1) // only alice's own domain, no new fracture
+  })
+
   it('creates a new Domain owned by the caller with the same name, rootDomainId null, and accessibilityState public', async () => {
     const alice = await registerAndLogin('alice@example.com')
     const bob = await registerAndLogin('bob@example.com')
@@ -486,6 +576,33 @@ describe('POST /domains/:id/attune', () => {
 
     expect(res.status).toBe(404)
   })
+
+  it('guardrail: group member who can read a private Domain still gets 403 on attune', async () => {
+    const rootOwner = await registerAndLogin('root@example.com')
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const root = await prisma.habitDomain.create({
+      data: { name: 'Root', ownerId: rootOwner.playerId, accessibilityState: 'private' },
+    })
+    await prisma.habitDomain.create({
+      data: { name: 'Alice domain', ownerId: alice.playerId, accessibilityState: 'private', rootDomainId: root.id },
+    })
+    const bobDomain = await prisma.habitDomain.create({
+      data: { name: 'Bob domain', ownerId: bob.playerId, accessibilityState: 'private', rootDomainId: root.id },
+    })
+    const fresh = await prisma.habitDomain.create({
+      data: { name: 'Fresh', ownerId: alice.playerId, accessibilityState: 'public' },
+    })
+
+    const res = await request(app)
+      .post(`/domains/${bobDomain.id}/attune`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ callerDomainId: fresh.id })
+
+    expect(res.status).toBe(403)
+    const attunement = await prisma.attunement.findFirst({ where: { domainId: fresh.id } })
+    expect(attunement).toBeNull()
+  })
 })
 
 describe('GET /domains/:id/skill-pairs', () => {
@@ -511,6 +628,31 @@ describe('GET /domains/:id/skill-pairs', () => {
     const alice = await registerAndLogin('alice@example.com')
     const res = await request(app).get('/domains/missing/skill-pairs').set('Authorization', `Bearer ${alice.token}`)
     expect(res.status).toBe(404)
+  })
+
+  it('group member can GET skill-pairs of a private sibling Domain', async () => {
+    const rootOwner = await registerAndLogin('root@example.com')
+    const alice = await registerAndLogin('alice@example.com')
+    const bob = await registerAndLogin('bob@example.com')
+    const root = await prisma.habitDomain.create({
+      data: { name: 'Root', ownerId: rootOwner.playerId, accessibilityState: 'private' },
+    })
+    await prisma.habitDomain.create({
+      data: { name: 'Alice domain', ownerId: alice.playerId, accessibilityState: 'private', rootDomainId: root.id },
+    })
+    const bobDomain = await prisma.habitDomain.create({
+      data: { name: 'Bob domain', ownerId: bob.playerId, accessibilityState: 'private', rootDomainId: root.id },
+    })
+    const rootSkill = await prisma.skill.create({ data: { name: 'Spike', domainId: root.id } })
+    const bobSkill = await prisma.skill.create({ data: { name: 'Spike', domainId: bobDomain.id } })
+    await prisma.skillPair.create({ data: { playerDomainSkillId: bobSkill.id, rootDomainSkillId: rootSkill.id } })
+
+    const res = await request(app)
+      .get(`/domains/${bobDomain.id}/skill-pairs`)
+      .set('Authorization', `Bearer ${alice.token}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body).toHaveLength(1)
   })
 })
 

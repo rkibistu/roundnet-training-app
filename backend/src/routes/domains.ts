@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express'
 import prisma from '../db.js'
 import { requireAuth } from '../middleware/jwt.js'
 import skillsRouter from './skills.js'
-import { canSee } from '../visibility.js'
+import { canSeeDomain } from '../visibility.js'
 
 const ACCESSIBILITY_STATES = ['public', 'protected', 'private'] as const
 
@@ -14,11 +14,30 @@ router.use(requireAuth)
 
 router.get('/', async (req: Request, res: Response) => {
   const callerId = req.player!.playerId
+
+  // Batch-compute the requester's group roots to avoid N+1
+  const myDomains = await prisma.habitDomain.findMany({
+    where: { ownerId: callerId },
+    select: { id: true, rootDomainId: true },
+  })
+  const groupRootIds = new Set<string>()
+  for (const d of myDomains) {
+    groupRootIds.add(d.rootDomainId ?? d.id)
+  }
+
+  const privateConditions = groupRootIds.size > 0
+    ? [
+        { accessibilityState: 'private', id: { in: [...groupRootIds] } },
+        { accessibilityState: 'private', rootDomainId: { in: [...groupRootIds] } },
+      ]
+    : []
+
   const domains = await prisma.habitDomain.findMany({
     where: {
       OR: [
         { ownerId: callerId },
         { accessibilityState: { in: ['public', 'protected'] } },
+        ...privateConditions,
       ],
     },
   })
@@ -31,7 +50,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     res.status(404).json({ error: 'Domain not found' })
     return
   }
-  if (!canSee(req.player!.playerId, domain)) {
+  if (!await canSeeDomain(req.player!.playerId, domain)) {
     res.status(403).json({ error: 'forbidden' })
     return
   }
@@ -92,8 +111,8 @@ router.post('/:id/fracture', async (req: Request, res: Response) => {
     res.status(404).json({ error: 'Domain not found' })
     return
   }
-  if (!canSee(callerId, source)) {
-    res.status(403).json({ error: 'forbidden' })
+  if (source.accessibilityState === 'private') {
+    res.status(403).json({ error: 'Private Domains cannot be fractured' })
     return
   }
   if (source.ownerId === callerId) {
@@ -142,8 +161,8 @@ router.post('/:id/attune', async (req: Request, res: Response) => {
     res.status(404).json({ error: 'Domain not found' })
     return
   }
-  if (!canSee(callerId, target)) {
-    res.status(403).json({ error: 'forbidden' })
+  if (target.accessibilityState === 'private') {
+    res.status(403).json({ error: 'use an invite' })
     return
   }
 
@@ -218,7 +237,7 @@ router.get('/:id/skill-pairs', async (req: Request, res: Response) => {
     res.status(404).json({ error: 'Domain not found' })
     return
   }
-  if (!canSee(callerId, domain)) {
+  if (!await canSeeDomain(callerId, domain)) {
     res.status(403).json({ error: 'forbidden' })
     return
   }
