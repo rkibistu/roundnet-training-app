@@ -113,7 +113,7 @@ const hooks = {
       { command: "mkdir -p ~/.claude/skills && cp -r .sandcastle/skills/tdd_afk ~/.claude/skills/" },
       { command: "cd /home/agent/workspace/backend && npm install", timeoutMs: 300_000 },
       { command: "cd /home/agent/workspace/frontend && npm install", timeoutMs: 300_000 },
-      { command: "cd /home/agent/workspace/backend && npx prisma migrate deploy", timeoutMs: 60_000 },
+      { command: "cd /home/agent/workspace/backend && npx prisma@5 migrate deploy", timeoutMs: 60_000 },
     ],
   },
 };
@@ -155,6 +155,7 @@ process.on("SIGINT", () => {
 // ---------------------------------------------------------------------------
 
 let lastRun: WorktreeRunResult | undefined;
+let autoCreatedPrUrl: string | undefined;
 
 if (EXISTING_BRANCH) {
   console.log(`\nResuming work on branch: ${branch}`);
@@ -179,6 +180,21 @@ if (EXISTING_BRANCH) {
   }
 
   console.log(`\nImplementation complete. Branch: ${branch} (${lastRun.commits.length} commit(s))`);
+
+  console.log("\nFetching issue title for PR...");
+  const issueJson = execSync(
+    `gh issue view ${ISSUE_NUMBER} --json title,number --jq '{title, number}'`,
+    { encoding: "utf8" }
+  );
+  const { title: issueTitle } = JSON.parse(issueJson) as { title: string; number: number };
+
+  console.log("Pushing branch and creating PR...");
+  execSync(`git push origin "${branch}"`, { stdio: "inherit" });
+  autoCreatedPrUrl = execSync(
+    `gh pr create --head "${branch}" --base main --title "RALPH: ${issueTitle}" --body "Closes #${ISSUE_NUMBER}"`,
+    { encoding: "utf8" }
+  ).trim();
+  console.log(`\nPR created: ${autoCreatedPrUrl}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -186,47 +202,44 @@ if (EXISTING_BRANCH) {
 // ---------------------------------------------------------------------------
 
 while (true) {
+  const prUrl = autoCreatedPrUrl ?? execSync(
+    `gh pr list --head "${branch}" --json url --jq '.[0].url // ""'`,
+    { encoding: "utf8" }
+  ).trim();
+
   const action = await askChoice("What would you like to do?", [
-    "PR and close issue — everything looks good",
+    `Close issue #${ISSUE_NUMBER} — everything looks good${prUrl ? ` (PR: ${prUrl})` : ""}`,
     "Need adjustments — read from a GitHub issue",
     "Need adjustments — provide input directly",
     "Discard worktree and exit",
   ]);
 
-  // --- Option 1: PR + close ---
+  // --- Option 1: close issue (PR was already created after implementation) ---
   if (action === 1) {
-    const confirm = await ask(`\nCreate PR and close issue #${ISSUE_NUMBER}? (y/n): `);
+    const confirm = await ask(`\nClose issue #${ISSUE_NUMBER}? (y/n): `);
     if (confirm.toLowerCase() !== "y") {
       console.log("Cancelled. Returning to menu.");
       continue;
     }
 
-    console.log("\nFetching issue title for PR...");
-    const issueJson = execSync(
-      `gh issue view ${ISSUE_NUMBER} --json title,number --jq '{title, number}'`,
-      { encoding: "utf8" }
-    );
-    const { title } = JSON.parse(issueJson) as { title: string; number: number };
-
-    const existingPrUrl = execSync(
-      `gh pr list --head "${branch}" --json url --jq '.[0].url // ""'`,
-      { encoding: "utf8" }
-    ).trim();
-
-    let prUrl: string;
-    if (existingPrUrl) {
-      prUrl = existingPrUrl;
-      console.log(`PR already exists (branch updated): ${prUrl}`);
-    } else {
-      console.log("Creating PR...");
-      prUrl = execSync(
+    let resolvedPrUrl = prUrl;
+    if (!resolvedPrUrl) {
+      // Fallback: resuming an existing branch that had no auto-created PR
+      console.log("\nNo PR found — creating one now...");
+      const issueJson = execSync(
+        `gh issue view ${ISSUE_NUMBER} --json title,number --jq '{title, number}'`,
+        { encoding: "utf8" }
+      );
+      const { title } = JSON.parse(issueJson) as { title: string; number: number };
+      execSync(`git push origin "${branch}"`, { stdio: "inherit" });
+      resolvedPrUrl = execSync(
         `gh pr create --head "${branch}" --base main --title "RALPH: ${title}" --body "Closes #${ISSUE_NUMBER}"`,
         { encoding: "utf8" }
       ).trim();
-      console.log(`PR created: ${prUrl}`);
+      console.log(`PR created: ${resolvedPrUrl}`);
     }
 
-    execSync(`gh issue close ${ISSUE_NUMBER} --comment "Completed. PR: ${prUrl}"`, { stdio: "inherit" });
+    execSync(`gh issue close ${ISSUE_NUMBER} --comment "Completed. PR: ${resolvedPrUrl}"`, { stdio: "inherit" });
     await wt.close();
 
     console.log(`Issue #${ISSUE_NUMBER} closed.\n\nAll done!`);
@@ -358,6 +371,8 @@ while (true) {
     console.log(`\nAdjustment run ${label}. Check the issue for details.`);
   } else {
     console.log(`\nAdjustments applied. Branch: ${branch} (${lastRun!.commits.length} commit(s) total)`);
+    execSync(`git push origin "${branch}"`, { stdio: "inherit" });
+    console.log("Branch pushed — PR updated on GitHub.");
   }
 }
 
