@@ -132,6 +132,24 @@ describe('GET /domains/:id/skills', () => {
     const res = await request(app).get('/domains/missing/skills').set('Authorization', `Bearer ${alice.token}`)
     expect(res.status).toBe(404)
   })
+
+  it('group member can GET skills of a private Root Domain they are attuned to', async () => {
+    const rootOwner = await registerAndLogin('root@example.com')
+    const alice = await registerAndLogin('alice@example.com')
+    const root = await prisma.habitDomain.create({
+      data: { name: 'Private Root', ownerId: rootOwner.playerId, accessibilityState: 'private' },
+    })
+    await prisma.skill.create({ data: { name: 'Spike', domainId: root.id } })
+    await prisma.habitDomain.create({
+      data: { name: 'Alice domain', ownerId: alice.playerId, accessibilityState: 'private', rootDomainId: root.id },
+    })
+
+    const res = await request(app).get(`/domains/${root.id}/skills`).set('Authorization', `Bearer ${alice.token}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body).toHaveLength(1)
+    expect(res.body[0].name).toBe('Spike')
+  })
 })
 
 describe('PATCH /domains/:id/skills/:skillId', () => {

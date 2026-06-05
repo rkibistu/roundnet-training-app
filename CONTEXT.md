@@ -25,8 +25,13 @@ Controls who can see and interact with a Domain. Three states: **public** (visib
 _Avoid_: visibility, permission level
 
 **Root Domain**:
-The Domain that anchors an attunement group — the one all attuned Players ultimately link to. When a Player attunes to a Domain that is itself attuned to another, the system resolves the chain immediately and records the link to the root. There is exactly one Root Domain per attunement group.
+The Domain that anchors an Attunement Group — the one all attuned Players ultimately link to. When a Player attunes to a Domain that is itself attuned to another, the system resolves the chain immediately and records the link to the root. There is exactly one Root Domain per Attunement Group.
 _Avoid_: parent domain, original domain, base domain
+
+**Attunement Group**:
+A Root Domain together with every Domain attuned to it; the unit of leaderboard sharing and (per ADR 0004) read visibility. All members of an Attunement Group may read each other's Domains — names, Skills, levels, XP — even when those Domains are private. Members do not see each other's management data (Join Requests, sent Domain Invites). Group membership = owns the Root, OR owns a Domain attuned to the Root, OR (Part 2) holds a pending Domain Invite into the group.
+_Avoid_: cohort, team, circle
+_Cross-reference_: Root Domain, Attune, ADR 0004
 
 **Attune** (action):
 The act of linking a Domain to a Root Domain, joining its leaderboard group. An attuned Player gets their own Domain (editable) whose Skills may be paired with the Root's Skills for comparison. The attunement link is stored as a direct reference to the Root Domain, never to an intermediary. A Domain can be attuned to at most one Root Domain at a time. Re-attuning to a different Root Domain is allowed; all existing Skill Pairs are cleared when switching. The Root Domain owner may remove an attuned Player from a protected or private Domain at any time; the removed Player's Domain becomes standalone (Session history and Skills preserved, attunement link dropped). Removal is not possible on public Domains.
