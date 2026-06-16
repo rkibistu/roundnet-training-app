@@ -1,5 +1,7 @@
 # Roundnet Training App
 
+This project was used just as a first time project using ai tools -> how to use them safely in an isolated environment.
+
 A mobile-first PWA for tracking roundnet training sessions, XP, and levels.
 
 ## Stack
